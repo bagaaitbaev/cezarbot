@@ -197,3 +197,9 @@ export function getStatsForPeriod(db, startIso, endIso) {
     review2gisSent,
   };
 }
+
+export function resetBookings(db) {
+  db.bookings = [];
+  db.nextBookingId = 1;
+  persist(db);
+}

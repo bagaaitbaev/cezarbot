@@ -16,6 +16,7 @@ import {
   insertBooking,
   listConfirmedBookingsInRange,
   listUpcomingBookings,
+  resetBookings,
   upsertUserLang,
   upsertUserPhone,
 } from './db.js';
@@ -244,6 +245,13 @@ export function createBot(db) {
 
   // /lang — поменять язык
   bot.command('lang', showLangSelect);
+
+  // /resetbookings — сброс всех броней (только для оператора)
+  bot.command('resetbookings', async (ctx) => {
+    if (!isOperatorCtx(ctx)) return;
+    resetBookings(db);
+    await ctx.reply('✅ Все брони удалены. База броней сброшена.');
+  });
 
   // ── Операторские команды ───────────────────────────────────────────────
 
