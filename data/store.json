@@ -156,7 +156,7 @@
       "status": "confirmed",
       "reminder_sent": 0,
       "review_2gis_eligible": 1,
-      "review_2gis_sent": 0,
+      "review_2gis_sent": 1,
       "created_at": "2026-03-28T18:46:51.052Z"
     },
     {
@@ -198,7 +198,7 @@
       "status": "confirmed",
       "reminder_sent": 0,
       "review_2gis_eligible": 1,
-      "review_2gis_sent": 0,
+      "review_2gis_sent": 1,
       "created_at": "2026-03-29T10:42:56.826Z"
     },
     {

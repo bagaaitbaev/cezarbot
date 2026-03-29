@@ -82,21 +82,8 @@ async function main() {
 
   await bot.telegram.deleteWebhook({ drop_pending_updates: true });
 
-  for (let attempt = 1; attempt <= 10; attempt++) {
-    try {
-      await bot.launch({ dropPendingUpdates: true });
-      console.log('CEZAR бот запущен (polling).');
-      break;
-    } catch (e) {
-      if (e.response?.error_code === 409) {
-        console.log(`[CEZAR] 409 конфликт, жду 10с и повторяю... (попытка ${attempt}/10)`);
-        await new Promise((r) => setTimeout(r, 10_000));
-      } else {
-        throw e;
-      }
-    }
-  }
-
+  // Устанавливаем описание и команды до старта поллинга,
+  // потому что bot.launch() блокирует поток на всё время работы бота.
   await bot.telegram.setMyCommands([
     { command: 'start', description: 'Запустить бота / Ботты іске қосу' },
     { command: 'lang',  description: 'Сменить язык / Тілді өзгерту' },
@@ -105,6 +92,27 @@ async function main() {
     '🎮 CEZAR PS5-ке қош келдіңіз!\n\nБұл бот арқылы сіз ойын аймағын жылдам және оңай брондай аласыз — кез-келген уақытта, кезексіз.\n\n«Бастау» түймесін басыңыз 👇\n━━━━━━━━━━━━━━━━━━━━━━━\n🎮 Добро пожаловать в CEZAR PS5!\n\nЭтот бот позволяет быстро и удобно забронировать игровую зону — в любое время, без очередей.\n\nНажмите «Старт» 👇',
   );
   await bot.telegram.setMyShortDescription('🎮 CEZAR PS5 — ойын брондау · бронирование игр');
+
+  // Даём Telegram время закрыть старое polling-соединение (если было).
+  await new Promise((r) => setTimeout(r, 3_000));
+
+  const MAX_ATTEMPTS = 30;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      console.log('[CEZAR] Бот запущен (polling).');
+      await bot.launch({ dropPendingUpdates: true });
+      break;
+    } catch (e) {
+      if (e.response?.error_code === 409) {
+        console.log(
+          `[CEZAR] 409 конфликт — другой экземпляр бота ещё работает. Жду 10с... (попытка ${attempt}/${MAX_ATTEMPTS})`,
+        );
+        await new Promise((r) => setTimeout(r, 10_000));
+      } else {
+        throw e;
+      }
+    }
+  }
 }
 
 main().catch((e) => {
