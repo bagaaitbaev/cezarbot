@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "users": {
+    "277741225": {
+      "user_id": 277741225,
+      "telegram_name": "B 🇰🇿",
+      "phone": "77756006530",
+      "updated_at": "2026-03-29T14:09:12.756Z",
+      "lang": "ru"
+    },
+    "673773347": {
+      "user_id": 673773347,
+      "lang": "ru",
+      "updated_at": "2026-03-28T18:59:47.078Z",
+      "telegram_name": "NUR1TO",
+      "phone": "77023464593"
+    },
+    "767396995": {
+      "user_id": 767396995,
+      "lang": "kz",
+      "updated_at": "2026-03-29T10:42:52.162Z",
+      "telegram_name": "Moldir Aitbay",
+      "phone": "77716323342"
+    },
+    "1254996441": {
+      "user_id": 1254996441,
+      "telegram_name": "Adik",
+      "phone": "77779564773",
+      "updated_at": "2026-03-28T17:51:37.312Z"
+    },
+    "1255554605": {
+      "user_id": 1255554605,
+      "telegram_name": "Пишет... Пишет...",
+      "phone": "77755188167",
+      "updated_at": "2026-03-28T17:57:55.533Z"
+    },
+    "1274229206": {
+      "user_id": 1274229206,
+      "lang": "kz",
+      "updated_at": "2026-03-29T14:35:46.642Z",
+      "telegram_name": "Ааа",
+      "phone": "77765306873"
+    },
+    "6447731177": {
+      "user_id": 6447731177,
+      "telegram_name": "Наурыз",
+      "phone": "77782296124",
+      "updated_at": "2026-03-28T18:43:30.677Z"
+    }
+  },
+  "bookings": [
+    {
+      "id": 1,
+      "user_id": 277741225,
+      "zone": "zal",
+      "start_datetime": "2026-03-29T14:00:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 3990,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "created_at": "2026-03-28T15:09:11.662Z"
+    },
+    {
+      "id": 2,
+      "user_id": 277741225,
+      "zone": "vip",
+      "start_datetime": "2026-03-29T15:00:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 6990,
+      "status": "confirmed",
+      "reminder_sent": 1,
+      "created_at": "2026-03-28T15:11:09.546Z"
+    },
+    {
+      "id": 3,
+      "user_id": 277741225,
+      "zone": "zal",
+      "start_datetime": "2026-03-29T12:00:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 3990,
+      "status": "confirmed",
+      "reminder_sent": 1,
+      "created_at": "2026-03-28T16:39:10.222Z"
+    },
+    {
+      "id": 4,
+      "user_id": 277741225,
+      "zone": "zal",
+      "start_datetime": "2026-03-28T17:00:00.000Z",
+      "duration_minutes": 60,
+      "with_combo": 0,
+      "total_price": 2000,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "created_at": "2026-03-28T16:56:59.324Z"
+    },
+    {
+      "id": 5,
+      "user_id": 277741225,
+      "zone": "vip",
+      "start_datetime": "2026-03-29T16:00:00.000Z",
+      "duration_minutes": 60,
+      "with_combo": 0,
+      "total_price": 4000,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "created_at": "2026-03-28T17:00:31.788Z"
+    },
+    {
+      "id": 6,
+      "user_id": 277741225,
+      "zone": "cabinet",
+      "start_datetime": "2026-03-29T16:00:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 5990,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "created_at": "2026-03-28T17:05:45.883Z"
+    },
+    {
+      "id": 7,
+      "user_id": 1254996441,
+      "zone": "zal",
+      "start_datetime": "2026-03-29T15:00:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 3990,
+      "status": "confirmed",
+      "reminder_sent": 1,
+      "created_at": "2026-03-28T17:51:40.938Z"
+    },
+    {
+      "id": 8,
+      "user_id": 6447731177,
+      "zone": "cabinet",
+      "start_datetime": "2026-03-29T15:00:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 5990,
+      "status": "confirmed",
+      "reminder_sent": 1,
+      "created_at": "2026-03-28T18:43:35.959Z"
+    },
+    {
+      "id": 9,
+      "user_id": 277741225,
+      "zone": "zal",
+      "start_datetime": "2026-03-29T12:40:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 3990,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "review_2gis_eligible": 1,
+      "review_2gis_sent": 0,
+      "created_at": "2026-03-28T18:46:51.052Z"
+    },
+    {
+      "id": 10,
+      "user_id": 277741225,
+      "zone": "vip",
+      "start_datetime": "2026-03-28T20:00:00.000Z",
+      "duration_minutes": 60,
+      "with_combo": 0,
+      "total_price": 4000,
+      "status": "confirmed",
+      "reminder_sent": 1,
+      "review_2gis_eligible": 1,
+      "review_2gis_sent": 1,
+      "created_at": "2026-03-28T18:56:48.565Z"
+    },
+    {
+      "id": 11,
+      "user_id": 673773347,
+      "zone": "zal",
+      "start_datetime": "2026-03-29T17:00:00.000Z",
+      "duration_minutes": 300,
+      "with_combo": 1,
+      "total_price": 4990,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "review_2gis_eligible": 1,
+      "review_2gis_sent": 0,
+      "created_at": "2026-03-28T18:59:50.795Z"
+    },
+    {
+      "id": 12,
+      "user_id": 767396995,
+      "zone": "vip",
+      "start_datetime": "2026-03-29T14:00:00.000Z",
+      "duration_minutes": 60,
+      "with_combo": 0,
+      "total_price": 4000,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "review_2gis_eligible": 1,
+      "review_2gis_sent": 0,
+      "created_at": "2026-03-29T10:42:56.826Z"
+    },
+    {
+      "id": 13,
+      "user_id": 1274229206,
+      "zone": "vip",
+      "start_datetime": "2026-03-29T19:00:00.000Z",
+      "duration_minutes": 180,
+      "with_combo": 1,
+      "total_price": 7850,
+      "status": "confirmed",
+      "reminder_sent": 0,
+      "review_2gis_eligible": 1,
+      "review_2gis_sent": 0,
+      "created_at": "2026-03-29T14:35:48.938Z"
+    }
+  ],
+  "nextBookingId": 14
+}

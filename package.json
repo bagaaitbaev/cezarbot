@@ -1,0 +1,23 @@
+{
+  "name": "cezarbot",
+  "version": "1.0.0",
+  "description": "CEZAR PS5 club Telegram booking bot (Kazakh)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "export:data": "node scripts/export-bookings.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.13",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.3"
+  }
+}
