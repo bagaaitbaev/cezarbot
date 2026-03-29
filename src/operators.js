@@ -55,8 +55,9 @@ export function notifyOperatorsNewBooking(telegram, p) {
   const text = lines.join('\n');
 
   for (const chatId of ids) {
-    void telegram
+    telegram
       .sendMessage(chatId, text, { disable_web_page_preview: true })
+      .then(() => console.log(`[CEZAR] Уведомление оператору ${chatId} — отправлено`))
       .catch((e) =>
         console.error('[CEZAR] Не удалось отправить сообщение оператору:', chatId, e.message),
       );

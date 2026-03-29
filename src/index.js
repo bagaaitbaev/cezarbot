@@ -1,4 +1,5 @@
 import fs from 'fs';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { openDb } from './db.js';
@@ -83,15 +84,19 @@ async function main() {
   const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
   if (railwayDomain) {
     const port = Number(process.env.PORT) || 3000;
-    await bot.launch({
-      webhook: {
-        domain: `https://${railwayDomain}`,
-        port,
-      },
+    const webhookPath = '/webhook';
+    const webhookUrl = `https://${railwayDomain}${webhookPath}`;
+
+    console.log(`[CEZAR] Регистрирую webhook: ${webhookUrl} (внутренний порт: ${port})`);
+    const wh = await bot.telegram.setWebhook(webhookUrl);
+    console.log(`[CEZAR] setWebhook результат:`, wh);
+
+    const server = http.createServer(bot.webhookCallback(webhookPath));
+    server.listen(port, () => {
+      console.log(`CEZAR бот запущен (webhook) на порту ${port} — ${webhookUrl}`);
     });
-    console.log(`CEZAR бот запущен (webhook) — https://${railwayDomain}`);
   } else {
-    await bot.launch();
+    await bot.launch({ dropPendingUpdates: true });
     console.log('CEZAR бот запущен (polling) — не закрывайте это окно, пока бот нужен в Telegram.');
   }
 
