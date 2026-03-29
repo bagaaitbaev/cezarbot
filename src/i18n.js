@@ -38,7 +38,8 @@ export const T = {
     zone_prompt: 'Выберите зону:',
     time_prompt: 'Выберите время:',
     duration_prompt: 'Выберите длительность:',
-    combo_prompt: 'Добавить комбо-пакет?',
+    combo_prompt: (priceWithout, priceWith) =>
+      `🎁 Хотите добавить еду к брони?\n\n🌭 2 хот-дога + 🥤 Лимонад\n\nБез комбо: ${priceWithout} ₸\nС комбо:   ${priceWith} ₸\n\nПо отдельности еда стоила бы 3 690 ₸ — с комбо экономите 840 ₸ 🔥`,
 
     btn_time_custom: '✏️ Ввести время вручную',
     btn_dur_1h: '1 час',
@@ -137,7 +138,8 @@ export const T = {
     zone_prompt: 'Қай аймақты таңдайсыз?',
     time_prompt: 'Уақытты таңдаңыз:',
     duration_prompt: 'Ұзақтықты таңдаңыз:',
-    combo_prompt: 'Комбо пакет қосасыз ба?',
+    combo_prompt: (priceWithout, priceWith) =>
+      `🎁 Брониға тамақ қосасыз ба?\n\n🌭 2 хот-дог + 🥤 Лимонад\n\nКомбосыз: ${priceWithout} ₸\nКомбомен: ${priceWith} ₸\n\nБөлек алсаңыз 3 690 ₸ болар еді — комбомен 840 ₸ үнемдейсіз 🔥`,
 
     btn_time_custom: '✏️ Уақытты өзім енгіземін',
     btn_dur_1h: '1 сағат',

@@ -499,7 +499,9 @@ export function createBot(db) {
         return;
       }
       ctx.session.step = 'combo';
-      await ctx.reply(t(lang, 'combo_prompt'), comboKeyboard(lang));
+      const priceWithout = getPrice(ctx.session.draft.zone, min, false);
+      const priceWith = getPrice(ctx.session.draft.zone, min, true);
+      await ctx.reply(t(lang, 'combo_prompt', priceWithout, priceWith), comboKeyboard(lang));
       return;
     }
 
