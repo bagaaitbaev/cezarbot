@@ -80,8 +80,20 @@ async function main() {
   startReminderJob(bot, db);
   startReview2gisJob(bot, db);
 
-  await bot.launch();
-  console.log('CEZAR бот запущен — не закрывайте это окно, пока бот нужен в Telegram.');
+  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (railwayDomain) {
+    const port = Number(process.env.PORT) || 3000;
+    await bot.launch({
+      webhook: {
+        domain: `https://${railwayDomain}`,
+        port,
+      },
+    });
+    console.log(`CEZAR бот запущен (webhook) — https://${railwayDomain}`);
+  } else {
+    await bot.launch();
+    console.log('CEZAR бот запущен (polling) — не закрывайте это окно, пока бот нужен в Telegram.');
+  }
 
   await bot.telegram.setMyCommands([
     { command: 'start', description: 'Запустить бота / Ботты іске қосу' },

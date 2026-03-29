@@ -518,8 +518,7 @@ export function createBot(db) {
             lang,
             'phone_with_combo',
             zoneLabel(z),
-            getPrice(z, 180, true),
-            getPrice(z, 300, true),
+            getPrice(z, ctx.session.draft.durationMin, true),
           ),
           phoneKeyboard(lang),
         );
