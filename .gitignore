@@ -74,6 +74,10 @@ web_modules/
 
 # dotenv environment variable files
 .env
+
+# Runtime data files
+data/sessions.json
+data/store.json
 .env.development.local
 .env.test.local
 .env.production.local

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Telegraf, session, Markup } from 'telegraf';
+import { makeSessionStore } from './utils/sessionStore.js';
 import { QUICK_HOURS, ZONE_CAPACITY, ZONES } from './config.js';
 import { t, DEFAULT_LANG } from './i18n.js';
 
@@ -196,6 +197,7 @@ export function createBot(db) {
   bot.use(
     session({
       defaultSession: () => ({ step: 'idle', draft: emptyDraft(), lang: null }),
+      store: makeSessionStore(),
     }),
   );
 
