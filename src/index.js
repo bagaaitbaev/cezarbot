@@ -90,6 +90,8 @@ async function main() {
     console.log(`[CEZAR] Регистрирую webhook: ${webhookUrl} (внутренний порт: ${port})`);
     const wh = await bot.telegram.setWebhook(webhookUrl);
     console.log(`[CEZAR] setWebhook результат:`, wh);
+    const whInfo = await bot.telegram.getWebhookInfo();
+    console.log(`[CEZAR] webhook после установки:`, whInfo.url || '(пусто!)');
 
     const server = http.createServer(bot.webhookCallback(webhookPath));
     server.listen(port, () => {
