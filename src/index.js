@@ -1,5 +1,4 @@
 import fs from 'fs';
-import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { openDb } from './db.js';
@@ -81,25 +80,21 @@ async function main() {
   startReminderJob(bot, db);
   startReview2gisJob(bot, db);
 
-  const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
-  if (railwayDomain) {
-    const port = Number(process.env.PORT) || 3000;
-    const webhookPath = '/webhook';
-    const webhookUrl = `https://${railwayDomain}${webhookPath}`;
+  await bot.telegram.deleteWebhook({ drop_pending_updates: true });
 
-    console.log(`[CEZAR] Регистрирую webhook: ${webhookUrl} (внутренний порт: ${port})`);
-    const wh = await bot.telegram.setWebhook(webhookUrl);
-    console.log(`[CEZAR] setWebhook результат:`, wh);
-    const whInfo = await bot.telegram.getWebhookInfo();
-    console.log(`[CEZAR] webhook после установки:`, whInfo.url || '(пусто!)');
-
-    const server = http.createServer(bot.webhookCallback(webhookPath));
-    server.listen(port, () => {
-      console.log(`CEZAR бот запущен (webhook) на порту ${port} — ${webhookUrl}`);
-    });
-  } else {
-    await bot.launch({ dropPendingUpdates: true });
-    console.log('CEZAR бот запущен (polling) — не закрывайте это окно, пока бот нужен в Telegram.');
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    try {
+      await bot.launch({ dropPendingUpdates: true });
+      console.log('CEZAR бот запущен (polling).');
+      break;
+    } catch (e) {
+      if (e.response?.error_code === 409) {
+        console.log(`[CEZAR] 409 конфликт, жду 10с и повторяю... (попытка ${attempt}/10)`);
+        await new Promise((r) => setTimeout(r, 10_000));
+      } else {
+        throw e;
+      }
+    }
   }
 
   await bot.telegram.setMyCommands([
