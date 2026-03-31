@@ -18,7 +18,7 @@ export const T = {
     operator_only: 'Эта команда только для операторов CEZAR.',
     operator_only_short: 'Эта команда только для операторов.',
     operator_help:
-      '🔧 Режим оператора\n\n/bugun или /today — список подтверждённых броней на сегодня.\n/stats — статистика по периодам.\n\nПри новой брони вам будет отправлено уведомление (если в .env указан OPERATOR_TELEGRAM_IDS).',
+      '🔧 Режим оператора\n\n/bugun или /today — список подтверждённых броней на сегодня.\n/stats — статистика по периодам.\n/exportclients — выгрузка клиентов (clients.csv).\n/exportbookings — выгрузка броней (bookings.csv).\n\nПромокоды (одноразовые):\n/promo_new — создать новый CZR-код.\n/promo_list — список активных кодов.\n/promo_off CZR-XXXXXX — отключить код.\n\n/resetbookings — удалить все брони.\n\nПри новой брони вам будет отправлено уведомление (если в .env указан OPERATOR_TELEGRAM_IDS).',
     no_bookings_today: (day) => `📅 ${day} — подтверждённых броней нет.`,
     bookings_today: (day) => `📅 Брони на сегодня (${day}):`,
 
@@ -128,7 +128,7 @@ export const T = {
     operator_only: 'Бұл команда тек CEZAR операторларына арналған.',
     operator_only_short: 'Бұл команда тек оператор үшін.',
     operator_help:
-      '🔧 Оператор режимі\n\n/bugun немесе /today — бүгін расталған броньдар тізімі.\n/stats — кезеңдер бойынша статистика.\n\nЖаңа бронь расталғанда сізге хабарлама жіберіледі (егер .env ішінде OPERATOR_TELEGRAM_IDS қойылған болса).',
+      '🔧 Оператор режимі\n\n/bugun немесе /today — бүгін расталған броньдар тізімі.\n/stats — кезеңдер бойынша статистика.\n/exportclients — клиенттерді шығару (clients.csv).\n/exportbookings — броньдарды шығару (bookings.csv).\n\nПромокодтар (бір рет):\n/promo_new — жаңа CZR-код құру.\n/promo_list — белсенді кодтар тізімі.\n/promo_off CZR-XXXXXX — кодты өшіру.\n\n/resetbookings — барлық броньдарды өшіру.\n\nЖаңа бронь расталғанда сізге хабарлама жіберіледі (егер .env ішінде OPERATOR_TELEGRAM_IDS қойылған болса).',
     no_bookings_today: (day) => `📅 ${day} — расталған броньдар жоқ.`,
     bookings_today: (day) => `📅 Бүгінгі броньдар (${day}):`,
 
