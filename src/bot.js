@@ -10,6 +10,8 @@ const __botDir = path.dirname(fileURLToPath(import.meta.url));
 const __projectRoot = path.join(__botDir, '..');
 import {
   analyzeOverlapForSlot,
+  getAllBookingsForExport,
+  getAllClientsForExport,
   getLastBooking,
   getStatsForPeriod,
   getUser,
@@ -305,6 +307,77 @@ export function createBot(db) {
       ],
     ]);
     await ctx.reply(t(lang, 'stats_period_choose'), keyboard);
+  });
+
+  // ── CSV-экспорт ────────────────────────────────────────────────────────
+
+  function csvEscape(val) {
+    const s = String(val ?? '');
+    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function buildCsv(headers, rows) {
+    const lines = [headers.map(csvEscape).join(',')];
+    for (const row of rows) lines.push(row.map(csvEscape).join(','));
+    return '\uFEFF' + lines.join('\r\n');
+  }
+
+  bot.command('exportclients', async (ctx) => {
+    const lang = getLang(ctx);
+    if (!isOperatorCtx(ctx)) {
+      await ctx.reply(t(lang, 'operator_only_short'));
+      return;
+    }
+    const clients = getAllClientsForExport(db);
+    if (!clients.length) {
+      await ctx.reply('📋 Нет данных о клиентах.');
+      return;
+    }
+    const headers = ['Имя', 'Телефон', 'Кол-во броней', 'Последняя бронь', 'Потрачено (тг)'];
+    const rows = clients.map((c) => [
+      c.name,
+      c.phone,
+      c.bookingCount,
+      c.lastBooking ? formatKzDateTime(c.lastBooking).split(' ')[0] : '—',
+      c.totalSpent,
+    ]);
+    const csv = buildCsv(headers, rows);
+    await ctx.replyWithDocument(
+      { source: Buffer.from(csv, 'utf8'), filename: 'clients.csv' },
+      { caption: `👥 Уникальных клиентов: ${clients.length}` },
+    );
+  });
+
+  bot.command('exportbookings', async (ctx) => {
+    const lang = getLang(ctx);
+    if (!isOperatorCtx(ctx)) {
+      await ctx.reply(t(lang, 'operator_only_short'));
+      return;
+    }
+    const bookings = getAllBookingsForExport(db);
+    if (!bookings.length) {
+      await ctx.reply('📋 Нет данных о бронях.');
+      return;
+    }
+    const headers = ['№', 'Дата и время', 'Клиент', 'Телефон', 'Зона', 'Длит. (мин)', 'Комбо', 'Сумма (тг)'];
+    const rows = bookings.map((b) => [
+      b.id,
+      formatKzDateTime(b.startDatetime),
+      b.name,
+      b.phone,
+      zoneLabel(b.zone),
+      b.durationMinutes,
+      b.withCombo ? 'да' : 'нет',
+      b.totalPrice,
+    ]);
+    const csv = buildCsv(headers, rows);
+    await ctx.replyWithDocument(
+      { source: Buffer.from(csv, 'utf8'), filename: 'bookings.csv' },
+      { caption: `📅 Всего броней: ${bookings.length}` },
+    );
   });
 
   bot.command('cancel', async (ctx) => {

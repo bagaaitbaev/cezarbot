@@ -203,3 +203,50 @@ export function resetBookings(db) {
   db.nextBookingId = 1;
   persist(db);
 }
+
+/** Уникальные клиенты с агрегированными данными по броням — для экспорта */
+export function getAllClientsForExport(db) {
+  const confirmed = db.bookings.filter((b) => b.status === 'confirmed');
+  const map = {};
+  for (const b of confirmed) {
+    const uid = String(b.user_id);
+    if (!map[uid]) map[uid] = { bookingCount: 0, totalSpent: 0, lastBooking: null };
+    map[uid].bookingCount++;
+    map[uid].totalSpent += b.total_price;
+    if (!map[uid].lastBooking || b.start_datetime > map[uid].lastBooking) {
+      map[uid].lastBooking = b.start_datetime;
+    }
+  }
+  return Object.entries(map)
+    .map(([uid, agg]) => {
+      const user = db.users[uid] ?? {};
+      return {
+        name: user.telegram_name || '—',
+        phone: user.phone || '—',
+        bookingCount: agg.bookingCount,
+        totalSpent: agg.totalSpent,
+        lastBooking: agg.lastBooking,
+      };
+    })
+    .sort((a, b) => (b.lastBooking ?? '').localeCompare(a.lastBooking ?? ''));
+}
+
+/** Все подтверждённые брони с данными клиента — для экспорта */
+export function getAllBookingsForExport(db) {
+  return db.bookings
+    .filter((b) => b.status === 'confirmed')
+    .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime))
+    .map((b) => {
+      const user = db.users[String(b.user_id)] ?? {};
+      return {
+        id: b.id,
+        startDatetime: b.start_datetime,
+        name: user.telegram_name || '—',
+        phone: user.phone || '—',
+        zone: b.zone,
+        durationMinutes: b.duration_minutes,
+        withCombo: b.with_combo,
+        totalPrice: b.total_price,
+      };
+    });
+}
