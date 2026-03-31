@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Telegraf, session, Markup } from 'telegraf';
 import { makeSessionStore } from './utils/sessionStore.js';
-import { QUICK_HOURS, ZONE_CAPACITY, ZONES } from './config.js';
+import { BASE_PRICES, QUICK_HOURS, ZONE_CAPACITY, ZONES } from './config.js';
 import { t, DEFAULT_LANG } from './i18n.js';
 
 const __botDir = path.dirname(fileURLToPath(import.meta.url));
@@ -112,7 +112,10 @@ function langKeyboard() {
 }
 
 function mainKeyboard(lang) {
-  return Markup.keyboard([[t(lang, 'btn_book'), t(lang, 'btn_my_bookings')]]).resize();
+  return Markup.keyboard([
+    [t(lang, 'btn_book'), t(lang, 'btn_my_bookings')],
+    [t(lang, 'btn_price')],
+  ]).resize();
 }
 
 function zoneKeyboard() {
@@ -388,6 +391,47 @@ export function createBot(db) {
   });
 
   // ── Кнопки главного меню (обе языковых версии) ─────────────────────────
+
+  function fmtPrice(n) {
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function buildPriceText(lang) {
+    const p = BASE_PRICES;
+    const isKz = lang === 'kz';
+    const h1 = isKz ? '1 сағат' : '1 час  ';
+    const h3 = isKz ? '3 сағат' : '3 часа ';
+    const h5 = isKz ? '5 сағат' : '5 часов';
+    const header = isKz ? '💰 CEZAR PS5 баға тізімі' : '💰 Прайс-лист CEZAR PS5';
+    const comboNote = isKz
+      ? '🍔 Комбо (тамақ) — 3 және 5 сағатқа қол жетімді'
+      : '🍔 Комбо (еда) — доступно при 3ч и 5ч';
+    return [
+      header,
+      '',
+      '🎮 ЗАЛ',
+      `  ${h1} — ${fmtPrice(p.zal[60])} ₸`,
+      `  ${h3} — ${fmtPrice(p.zal[180])} ₸`,
+      `  ${h5} — ${fmtPrice(p.zal[300])} ₸`,
+      '',
+      '🚪 КАБИНКА',
+      `  ${h1} — ${fmtPrice(p.cabinet[60])} ₸`,
+      `  ${h3} — ${fmtPrice(p.cabinet[180])} ₸`,
+      `  ${h5} — ${fmtPrice(p.cabinet[300])} ₸`,
+      '',
+      '👑 ВИП',
+      `  ${h1} — ${fmtPrice(p.vip[60])} ₸`,
+      `  ${h3} — ${fmtPrice(p.vip[180])} ₸`,
+      `  ${h5} — ${fmtPrice(p.vip[300])} ₸`,
+      '',
+      comboNote,
+    ].join('\n');
+  }
+
+  bot.hears(/^(💰 Прайс|💰 Баға)$/, async (ctx) => {
+    const lang = getLang(ctx);
+    await ctx.reply(buildPriceText(lang));
+  });
 
   bot.hears(/^(🎮 Забронировать|🎮 Брондау)$/, async (ctx) => {
     ctx.session.draft = emptyDraft();
