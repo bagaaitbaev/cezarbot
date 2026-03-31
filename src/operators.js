@@ -29,7 +29,10 @@ export function isOperatorCtx(ctx) {
  */
 export function notifyOperatorsNewBooking(telegram, p) {
   const ids = getOperatorChatIds();
-  if (!ids.length) return;
+  if (!ids.length) {
+    console.warn('[CEZAR] OPERATOR_TELEGRAM_IDS не задан — уведомления не будут отправлены');
+    return;
+  }
 
   const { booking, guestRow, guestFrom, zoneLabel } = p;
   const uname = guestFrom?.username ? `@${guestFrom.username}` : '';
@@ -54,12 +57,13 @@ export function notifyOperatorsNewBooking(telegram, p) {
 
   const text = lines.join('\n');
 
+  console.log(`[CEZAR] Отправка уведомления о брони №${booking.id} в ${ids.length} чат(ов): ${ids.join(', ')}`);
   for (const chatId of ids) {
     telegram
       .sendMessage(chatId, text, { disable_web_page_preview: true })
-      .then(() => console.log(`[CEZAR] Уведомление оператору ${chatId} — отправлено`))
+      .then(() => console.log(`[CEZAR] ✅ Уведомление оператору ${chatId} — доставлено`))
       .catch((e) =>
-        console.error('[CEZAR] Не удалось отправить сообщение оператору:', chatId, e.message),
+        console.error(`[CEZAR] ❌ Не удалось отправить оператору ${chatId}: [${e.response?.error_code ?? '?'}] ${e.message}`),
       );
   }
 }
