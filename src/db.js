@@ -10,7 +10,7 @@ function resolvePath() {
 }
 
 function emptyStore() {
-  return { version: 1, users: {}, bookings: [], nextBookingId: 1 };
+  return { version: 1, users: {}, bookings: [], nextBookingId: 1, promo_codes: [] };
 }
 
 function persist(db) {
@@ -35,6 +35,7 @@ export function openDb() {
   if (!db.users || typeof db.users !== 'object') db.users = {};
   if (!Array.isArray(db.bookings)) db.bookings = [];
   if (typeof db.nextBookingId !== 'number' || db.nextBookingId < 1) db.nextBookingId = 1;
+  if (!Array.isArray(db.promo_codes)) db.promo_codes = [];
   persist(db);
   return db;
 }
@@ -68,7 +69,7 @@ export function getUser(db, userId) {
 
 export function insertBooking(
   db,
-  { userId, zone, startDatetimeIso, durationMinutes, withCombo, totalPrice },
+  { userId, zone, startDatetimeIso, durationMinutes, withCombo, totalPrice, promoCode = null },
 ) {
   const id = db.nextBookingId++;
   const booking = {
@@ -79,6 +80,7 @@ export function insertBooking(
     duration_minutes: durationMinutes,
     with_combo: withCombo ? 1 : 0,
     total_price: totalPrice,
+    promo_code: promoCode || null,
     status: 'confirmed',
     reminder_sent: 0,
     review_2gis_eligible: 1,
@@ -88,6 +90,87 @@ export function insertBooking(
   db.bookings.push(booking);
   persist(db);
   return booking;
+}
+
+export function setUserPromoPending(db, userId, promoCode) {
+  const existing = db.users[String(userId)] ?? {};
+  db.users[String(userId)] = {
+    ...existing,
+    user_id: userId,
+    promo_pending: promoCode || null,
+    updated_at: new Date().toISOString(),
+  };
+  persist(db);
+}
+
+export function clearUserPromoPending(db, userId) {
+  setUserPromoPending(db, userId, null);
+}
+
+function normalizePromoCode(code) {
+  return String(code ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '');
+}
+
+export function findPromoCode(db, code) {
+  const c = normalizePromoCode(code);
+  if (!c) return null;
+  return db.promo_codes.find((p) => String(p.code).toUpperCase() === c) ?? null;
+}
+
+export function validatePromoCode(db, code) {
+  const c = normalizePromoCode(code);
+  if (!c) return { ok: false, reason: 'empty' };
+  const row = findPromoCode(db, c);
+  if (!row) return { ok: false, reason: 'not_found' };
+  if (row.disabled) return { ok: false, reason: 'disabled' };
+  if (row.used_at) return { ok: false, reason: 'used' };
+  return { ok: true, code: row.code };
+}
+
+export function createPromoCode(db, code, createdBy) {
+  const c = normalizePromoCode(code);
+  if (!c) return { ok: false, reason: 'empty' };
+  if (findPromoCode(db, c)) return { ok: false, reason: 'exists' };
+  const row = {
+    code: c,
+    created_at: new Date().toISOString(),
+    created_by: createdBy ?? null,
+    disabled: false,
+    used_at: null,
+    used_by: null,
+  };
+  db.promo_codes.push(row);
+  persist(db);
+  return { ok: true, row };
+}
+
+export function listActivePromoCodes(db, limit = 50) {
+  return db.promo_codes
+    .filter((p) => !p.disabled && !p.used_at)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, limit);
+}
+
+export function disablePromoCode(db, code) {
+  const row = findPromoCode(db, code);
+  if (!row) return { ok: false, reason: 'not_found' };
+  row.disabled = true;
+  persist(db);
+  return { ok: true };
+}
+
+export function markPromoUsed(db, code, userId) {
+  const row = findPromoCode(db, code);
+  if (!row) return { ok: false, reason: 'not_found' };
+  if (row.disabled) return { ok: false, reason: 'disabled' };
+  if (row.used_at) return { ok: false, reason: 'used' };
+  row.used_at = new Date().toISOString();
+  row.used_by = userId ?? null;
+  persist(db);
+  return { ok: true };
 }
 
 /** Расталған броньдар: басталу уақыты [startIso, endIso] аралығында */
@@ -247,6 +330,7 @@ export function getAllBookingsForExport(db) {
         durationMinutes: b.duration_minutes,
         withCombo: b.with_combo,
         totalPrice: b.total_price,
+        promoCode: b.promo_code ?? null,
       };
     });
 }

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 import { Telegraf, session, Markup } from 'telegraf';
 import { makeSessionStore } from './utils/sessionStore.js';
 import { BASE_PRICES, QUICK_HOURS, ZONE_CAPACITY, ZONES } from './config.js';
@@ -10,6 +11,8 @@ const __botDir = path.dirname(fileURLToPath(import.meta.url));
 const __projectRoot = path.join(__botDir, '..');
 import {
   analyzeOverlapForSlot,
+  clearUserPromoPending,
+  createPromoCode,
   getAllBookingsForExport,
   getAllClientsForExport,
   getLastBooking,
@@ -18,7 +21,12 @@ import {
   insertBooking,
   listConfirmedBookingsInRange,
   listUpcomingBookings,
+  listActivePromoCodes,
+  markPromoUsed,
   resetBookings,
+  setUserPromoPending,
+  validatePromoCode,
+  disablePromoCode,
   upsertUserLang,
   upsertUserPhone,
 } from './db.js';
@@ -115,6 +123,7 @@ function mainKeyboard(lang) {
   return Markup.keyboard([
     [t(lang, 'btn_book'), t(lang, 'btn_my_bookings')],
     [t(lang, 'btn_price')],
+    [t(lang, 'btn_register'), t(lang, 'btn_promo')],
   ]).resize();
 }
 
@@ -312,6 +321,69 @@ export function createBot(db) {
     await ctx.reply(t(lang, 'stats_period_choose'), keyboard);
   });
 
+  function generatePromoCode() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 6; i++) {
+      const idx = crypto.randomInt(0, alphabet.length);
+      s += alphabet[idx];
+    }
+    return `CZR-${s}`;
+  }
+
+  bot.command('promo_new', async (ctx) => {
+    const lang = getLang(ctx);
+    if (!isOperatorCtx(ctx)) {
+      await ctx.reply(t(lang, 'operator_only_short'));
+      return;
+    }
+    for (let i = 0; i < 10; i++) {
+      const code = generatePromoCode();
+      const r = createPromoCode(db, code, ctx.from?.id ?? null);
+      if (r.ok) {
+        await ctx.reply(`🏷 Новый промокод: ${r.row.code}\nОдноразовый. Сообщите клиенту.`);
+        return;
+      }
+      if (r.reason !== 'exists') break;
+    }
+    await ctx.reply('❌ Не удалось сгенерировать промокод. Попробуйте ещё раз.');
+  });
+
+  bot.command('promo_list', async (ctx) => {
+    const lang = getLang(ctx);
+    if (!isOperatorCtx(ctx)) {
+      await ctx.reply(t(lang, 'operator_only_short'));
+      return;
+    }
+    const list = listActivePromoCodes(db, 50);
+    if (!list.length) {
+      await ctx.reply('📋 Активных промокодов нет.');
+      return;
+    }
+    const lines = list.map((p) => `- ${p.code}`);
+    await ctx.reply(`📋 Активные промокоды (${list.length}):\n\n${lines.join('\n')}`);
+  });
+
+  bot.command('promo_off', async (ctx) => {
+    const lang = getLang(ctx);
+    if (!isOperatorCtx(ctx)) {
+      await ctx.reply(t(lang, 'operator_only_short'));
+      return;
+    }
+    const parts = ctx.message.text.split(/\s+/).filter(Boolean);
+    const code = parts[1];
+    if (!code) {
+      await ctx.reply('Формат: /promo_off CZR-XXXXXX');
+      return;
+    }
+    const r = disablePromoCode(db, code);
+    if (!r.ok) {
+      await ctx.reply('❌ Промокод не найден.');
+      return;
+    }
+    await ctx.reply(`✅ Промокод отключён: ${String(code).toUpperCase()}`);
+  });
+
   // ── CSV-экспорт ────────────────────────────────────────────────────────
 
   function csvEscape(val) {
@@ -365,7 +437,17 @@ export function createBot(db) {
       await ctx.reply('📋 Нет данных о бронях.');
       return;
     }
-    const headers = ['№', 'Дата и время', 'Клиент', 'Телефон', 'Зона', 'Длит. (мин)', 'Комбо', 'Сумма (тг)'];
+    const headers = [
+      '№',
+      'Дата и время',
+      'Клиент',
+      'Телефон',
+      'Зона',
+      'Длит. (мин)',
+      'Комбо',
+      'Сумма (тг)',
+      'Промокод',
+    ];
     const rows = bookings.map((b) => [
       b.id,
       formatKzDateTime(b.startDatetime),
@@ -375,6 +457,7 @@ export function createBot(db) {
       b.durationMinutes,
       b.withCombo ? 'да' : 'нет',
       b.totalPrice,
+      b.promoCode || '',
     ]);
     const csv = buildCsv(headers, rows);
     await ctx.replyWithDocument(
@@ -431,6 +514,18 @@ export function createBot(db) {
   bot.hears(/^(💰 Прайс|💰 Баға)$/, async (ctx) => {
     const lang = getLang(ctx);
     await ctx.reply(buildPriceText(lang));
+  });
+
+  bot.hears(/^(📝 Регистрация|📝 Тіркелу)$/, async (ctx) => {
+    const lang = getLang(ctx);
+    ctx.session.step = 'register_phone';
+    await ctx.reply(t(lang, 'register_prompt'), phoneKeyboard(lang));
+  });
+
+  bot.hears(/^(🏷 Промокод)$/, async (ctx) => {
+    const lang = getLang(ctx);
+    ctx.session.step = 'promo_custom';
+    await ctx.reply(t(lang, 'promo_prompt'), Markup.removeKeyboard());
   });
 
   bot.hears(/^(🎮 Забронировать|🎮 Брондау)$/, async (ctx) => {
@@ -703,6 +798,15 @@ export function createBot(db) {
         ctx.session.step = 'phone';
         return;
       }
+      let promoToApply = null;
+      if (phoneRow?.promo_pending) {
+        const v = validatePromoCode(db, phoneRow.promo_pending);
+        if (v.ok) {
+          promoToApply = v.code;
+        } else {
+          clearUserPromoPending(db, user.id);
+        }
+      }
       const booking = insertBooking(db, {
         userId: user.id,
         zone: d.zone,
@@ -710,9 +814,17 @@ export function createBot(db) {
         durationMinutes: d.durationMin,
         withCombo: d.withCombo === true,
         totalPrice: total,
+        promoCode: promoToApply,
       });
+      if (promoToApply) {
+        const used = markPromoUsed(db, promoToApply, user.id);
+        clearUserPromoPending(db, user.id);
+        if (!used.ok) promoToApply = null;
+      }
       await ctx.reply(
-        `${t(lang, 'booking_confirmed')}\n\n${buildSummaryText(d, lang)}`,
+        `${t(lang, 'booking_confirmed')}${
+          promoToApply ? `\n${t(lang, 'promo_applied_note', promoToApply)}` : ''
+        }\n\n${buildSummaryText(d, lang)}`,
         mainKeyboard(lang),
       );
       notifyOperatorsNewBooking(bot.telegram, {
@@ -738,10 +850,16 @@ export function createBot(db) {
       await ctx.reply(t(lang, 'phone_own_error'));
       return;
     }
-    if (ctx.session.step !== 'phone') return;
+    if (ctx.session.step !== 'phone' && ctx.session.step !== 'register_phone') return;
     const phone = c.phone_number;
     const name = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ');
     upsertUserPhone(db, ctx.from.id, name, phone);
+    if (ctx.session.step === 'register_phone') {
+      ctx.session.step = 'idle';
+      ctx.session.draft = emptyDraft();
+      await ctx.reply(t(lang, 'register_done'), mainKeyboard(lang));
+      return;
+    }
     ctx.session.step = 'confirm';
     await ctx.reply(buildSummaryText(ctx.session.draft, lang), Markup.removeKeyboard());
     await ctx.reply(t(lang, 'confirm_prompt'), confirmKeyboard(lang));
@@ -784,6 +902,26 @@ export function createBot(db) {
 
     if (ctx.session.step === 'phone') {
       await ctx.reply(t(lang, 'phone_manual_error'), phoneKeyboard(lang));
+      return;
+    }
+
+    if (ctx.session.step === 'register_phone') {
+      await ctx.reply(t(lang, 'phone_manual_error'), phoneKeyboard(lang));
+      return;
+    }
+
+    if (ctx.session.step === 'promo_custom') {
+      const raw = (text || '').trim();
+      const code = raw.toUpperCase().replace(/\s+/g, '');
+      const v = validatePromoCode(db, code);
+      if (!v.ok) {
+        await ctx.reply(t(lang, 'promo_invalid'), mainKeyboard(lang));
+        ctx.session.step = 'idle';
+        return;
+      }
+      setUserPromoPending(db, ctx.from.id, v.code);
+      await ctx.reply(t(lang, 'promo_saved', v.code), mainKeyboard(lang));
+      ctx.session.step = 'idle';
       return;
     }
 

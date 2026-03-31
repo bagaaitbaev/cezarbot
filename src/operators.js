@@ -39,6 +39,7 @@ export function notifyOperatorsNewBooking(telegram, p) {
   const name = guestRow?.telegram_name || [guestFrom?.first_name, guestFrom?.last_name].filter(Boolean).join(' ') || '—';
   const phone = guestRow?.phone || '—';
   const combo = booking.with_combo ? 'да' : 'нет';
+  const promo = booking.promo_code ? String(booking.promo_code) : '';
 
   const lines = [
     '🆕 Новая бронь',
@@ -48,6 +49,7 @@ export function notifyOperatorsNewBooking(telegram, p) {
     `Начало: ${p.startLabel}`,
     `Длительность: ${p.durationLabel}`,
     `Комбо: ${combo}`,
+    ...(promo ? [`Промокод: ${promo}`] : []),
     `Сумма: ${booking.total_price} ₸`,
     '',
     `Клиент: ${name}`,

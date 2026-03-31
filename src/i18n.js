@@ -12,6 +12,8 @@ export const T = {
     btn_book: '🎮 Забронировать',
     btn_my_bookings: '📅 Мои брони',
     btn_price: '💰 Прайс',
+    btn_register: '📝 Регистрация',
+    btn_promo: '🏷 Промокод',
 
     operator_only: 'Эта команда только для операторов CEZAR.',
     operator_only_short: 'Эта команда только для операторов.',
@@ -59,6 +61,13 @@ export const T = {
       `🍔 КОМБО: игровое время + 2 хот-дога + лимонад\n📍 ${zone} — ${price} ₸\n\nОтправьте ваш номер телефона`,
     phone_own_error: 'Отправьте свой номер (через кнопку).',
     phone_manual_error: 'Номер нужно отправить через кнопку 📱, а не вручную.',
+    register_prompt: '📝 Регистрация\n\nОтправьте ваш номер телефона через кнопку ниже.',
+    register_done: '✅ Готово! Номер сохранён.',
+
+    promo_prompt: '🏷 Введите промокод (например: CZR-7K3P2Q)',
+    promo_saved: (code) => `✅ Промокод сохранён: ${code}\nОн будет применён к следующей брони.`,
+    promo_invalid: '❌ Промокод не найден или уже использован.',
+    promo_applied_note: (code) => `🏷 Промокод применён: ${code}`,
 
     confirm_prompt: 'Данные верны? Подтвердите или измените.',
     summary: (z, time, dur, combo, total) =>
@@ -113,6 +122,8 @@ export const T = {
     btn_book: '🎮 Брондау',
     btn_my_bookings: '📅 Менің броньдарым',
     btn_price: '💰 Баға',
+    btn_register: '📝 Тіркелу',
+    btn_promo: '🏷 Промокод',
 
     operator_only: 'Бұл команда тек CEZAR операторларына арналған.',
     operator_only_short: 'Бұл команда тек оператор үшін.',
@@ -161,6 +172,13 @@ export const T = {
     phone_own_error: 'Өз нөміріңізді жіберіңіз (батырма арқылы).',
     phone_manual_error:
       'Телефонды тек 📱 батырмасы арқылы жіберіңіз (қолмен емес).',
+    register_prompt: '📝 Тіркелу\n\nТелефон нөміріңізді төмендегі батырма арқылы жіберіңіз.',
+    register_done: '✅ Дайын! Нөмір сақталды.',
+
+    promo_prompt: '🏷 Промокодты енгізіңіз (мысалы: CZR-7K3P2Q)',
+    promo_saved: (code) => `✅ Промокод сақталды: ${code}\nКелесі броньға қолданылады.`,
+    promo_invalid: '❌ Промокод табылмады немесе қолданылып қойған.',
+    promo_applied_note: (code) => `🏷 Промокод қолданылды: ${code}`,
 
     confirm_prompt: 'Деректер дұрыс па? Растаңыз немесе өзгертіңіз.',
     summary: (z, time, dur, combo, total) =>
