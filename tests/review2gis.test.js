@@ -11,7 +11,7 @@ describe('getBookingsNeedingReview2gis', () => {
     const db = mockDb([
       {
         id: 1,
-        status: 'confirmed',
+        status: 'booked',
         start_datetime: start,
         duration_minutes: 60,
         reminder_sent: 0,
@@ -25,7 +25,7 @@ describe('getBookingsNeedingReview2gis', () => {
     const db = mockDb([
       {
         id: 2,
-        status: 'confirmed',
+        status: 'booked',
         start_datetime: start,
         duration_minutes: 60,
         review_2gis_eligible: 1,
@@ -40,7 +40,7 @@ describe('getBookingsNeedingReview2gis', () => {
     const db = mockDb([
       {
         id: 3,
-        status: 'confirmed',
+        status: 'booked',
         start_datetime: start,
         duration_minutes: 60,
         review_2gis_eligible: 1,
@@ -55,7 +55,7 @@ describe('getBookingsNeedingReview2gis', () => {
     const db = mockDb([
       {
         id: 4,
-        status: 'confirmed',
+        status: 'booked',
         start_datetime: start,
         duration_minutes: 60,
         review_2gis_eligible: 1,

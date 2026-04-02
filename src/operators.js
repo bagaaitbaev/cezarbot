@@ -69,3 +69,36 @@ export function notifyOperatorsNewBooking(telegram, p) {
       );
   }
 }
+
+/**
+ * @param {import('telegraf').Telegram} telegram
+ * @param {{ booking: object, guestRow: object | null, guestFrom: import('telegraf').Context['from'], zoneLabel: string, startLabel: string, durationLabel: string }} p
+ */
+export function notifyOperatorsBookingCancelled(telegram, p) {
+  const ids = getOperatorChatIds();
+  if (!ids.length) return;
+
+  const { booking, guestRow, guestFrom, zoneLabel, startLabel, durationLabel } = p;
+  const uname = guestFrom?.username ? `@${guestFrom.username}` : '';
+  const name =
+    guestRow?.telegram_name ||
+    [guestFrom?.first_name, guestFrom?.last_name].filter(Boolean).join(' ') ||
+    '—';
+
+  const lines = [
+    '❌ Отмена брони',
+    '',
+    `№ ${booking.id}`,
+    `Зона: ${zoneLabel}`,
+    `Начало: ${startLabel}`,
+    `Длительность: ${durationLabel}`,
+    '',
+    `Клиент: ${name}`,
+    `Telegram ID: ${guestFrom?.id ?? '—'}${uname ? ` ${uname}` : ''}`,
+  ];
+
+  const text = lines.join('\n');
+  for (const chatId of ids) {
+    telegram.sendMessage(chatId, text, { disable_web_page_preview: true }).catch(() => {});
+  }
+}

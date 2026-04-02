@@ -18,6 +18,7 @@ import {
   getLastBooking,
   getStatsForPeriod,
   getUser,
+  cancelBooking,
   insertBooking,
   listConfirmedBookingsInRange,
   listUpcomingBookings,
@@ -30,7 +31,12 @@ import {
   upsertUserLang,
   upsertUserPhone,
 } from './db.js';
-import { isOperator, isOperatorCtx, notifyOperatorsNewBooking } from './operators.js';
+import {
+  isOperator,
+  isOperatorCtx,
+  notifyOperatorsNewBooking,
+  notifyOperatorsBookingCancelled,
+} from './operators.js';
 import { getPrice } from './pricing.js';
 import {
   formatKzDateTime,
@@ -543,14 +549,17 @@ export function createBot(db) {
       await ctx.reply(t(lang, 'no_bookings'), mainKeyboard(lang));
       return;
     }
-    const lines = rows.map((r) => {
+    await ctx.reply(t(lang, 'my_bookings_header'), mainKeyboard(lang));
+    for (const r of rows) {
       const combo = r.with_combo ? t(lang, 'combo_label') : t(lang, 'no_combo_label');
-      return (
+      const text =
         `#${r.id} • ${zoneLabel(r.zone)} • ${formatKzDateTime(r.start_datetime)} • ` +
-        `${minutesLabel(r.duration_minutes, lang)} • ${combo} • ${r.total_price} ₸`
-      );
-    });
-    await ctx.reply(`${t(lang, 'my_bookings_header')}\n\n${lines.join('\n')}`, mainKeyboard(lang));
+        `${minutesLabel(r.duration_minutes, lang)} • ${combo} • ${r.total_price} ₸`;
+      const kb = Markup.inlineKeyboard([
+        Markup.button.callback(t(lang, 'btn_cancel_booking'), `mb:cancel:${r.id}`),
+      ]);
+      await ctx.reply(text, kb);
+    }
     const last = getLastBooking(db, uid);
     if (last) {
       await ctx.reply(
@@ -638,6 +647,72 @@ export function createBot(db) {
     }
 
     const lang = getLang(ctx);
+
+    if (data.startsWith('mb:cancel:')) {
+      const id = Number(data.split(':')[2]);
+      await ctx.reply(
+        t(lang, 'cancel_confirm_q'),
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(t(lang, 'btn_yes'), `mb:cancel_yes:${id}`),
+            Markup.button.callback(t(lang, 'btn_no'), `mb:cancel_no:${id}`),
+          ],
+        ]),
+      );
+      return;
+    }
+
+    if (data.startsWith('mb:cancel_no:')) {
+      return;
+    }
+
+    if (data.startsWith('mb:cancel_yes:')) {
+      const id = Number(data.split(':')[2]);
+      const r = cancelBooking(db, id, ctx.from.id);
+      if (!r.ok) {
+        const msg =
+          r.reason === 'not_found' ? t(lang, 'cancel_not_found') : t(lang, 'cancel_not_allowed');
+        await ctx.reply(msg, mainKeyboard(lang));
+        return;
+      }
+
+      const guestRow = getUser(db, ctx.from.id);
+      notifyOperatorsBookingCancelled(bot.telegram, {
+        booking: r.booking,
+        guestRow,
+        guestFrom: ctx.from,
+        zoneLabel: zoneLabel(r.booking.zone),
+        startLabel: formatKzDateTime(r.booking.start_datetime),
+        durationLabel: minutesLabel(r.booking.duration_minutes, lang),
+      });
+
+      await ctx.reply(t(lang, 'cancel_done'), mainKeyboard(lang));
+
+      const rows = listUpcomingBookings(db, ctx.from.id);
+      if (!rows.length) {
+        await ctx.reply(t(lang, 'no_bookings'), mainKeyboard(lang));
+        return;
+      }
+      await ctx.reply(t(lang, 'my_bookings_header'), mainKeyboard(lang));
+      for (const b of rows) {
+        const combo = b.with_combo ? t(lang, 'combo_label') : t(lang, 'no_combo_label');
+        const text =
+          `#${b.id} • ${zoneLabel(b.zone)} • ${formatKzDateTime(b.start_datetime)} • ` +
+          `${minutesLabel(b.duration_minutes, lang)} • ${combo} • ${b.total_price} ₸`;
+        const kb = Markup.inlineKeyboard([
+          Markup.button.callback(t(lang, 'btn_cancel_booking'), `mb:cancel:${b.id}`),
+        ]);
+        await ctx.reply(text, kb);
+      }
+      const last = getLastBooking(db, ctx.from.id);
+      if (last) {
+        await ctx.reply(
+          t(lang, 'repeat_prompt'),
+          Markup.inlineKeyboard([[Markup.button.callback(t(lang, 'repeat_btn'), 'repeat:last')]]),
+        );
+      }
+      return;
+    }
 
     if (data === 'repeat:last') {
       const last = getLastBooking(db, ctx.from.id);

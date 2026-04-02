@@ -19,6 +19,11 @@ function persist(db) {
   fs.writeFileSync(p, JSON.stringify(db, null, 2), 'utf8');
 }
 
+function isBookedStatus(status) {
+  // backward compatibility: older data used 'confirmed'
+  return status === 'booked' || status === 'confirmed';
+}
+
 /** JSON-файл как база данных */
 export function openDb() {
   const p = resolvePath();
@@ -81,7 +86,7 @@ export function insertBooking(
     with_combo: withCombo ? 1 : 0,
     total_price: totalPrice,
     promo_code: promoCode || null,
-    status: 'confirmed',
+    status: 'booked',
     reminder_sent: 0,
     review_2gis_eligible: 1,
     review_2gis_sent: 0,
@@ -178,7 +183,7 @@ export function listConfirmedBookingsInRange(db, startIso, endIso) {
   return db.bookings
     .filter(
       (b) =>
-        b.status === 'confirmed' &&
+        isBookedStatus(b.status) &&
         b.start_datetime >= startIso &&
         b.start_datetime <= endIso,
     )
@@ -190,7 +195,7 @@ export function listConfirmedBookingsInRange(db, startIso, endIso) {
  * ең ерте аяқталу уақытын қайтарады (орын толы болғанда кеңес үшін).
  */
 export function analyzeOverlapForSlot(db, zone, startMs, endMs, excludeId = null) {
-  const rows = db.bookings.filter((b) => b.zone === zone && b.status === 'confirmed');
+  const rows = db.bookings.filter((b) => b.zone === zone && isBookedStatus(b.status));
   let count = 0;
   let earliestEndMs = null;
   for (const row of rows) {
@@ -208,13 +213,13 @@ export function analyzeOverlapForSlot(db, zone, startMs, endMs, excludeId = null
 export function listUpcomingBookings(db, userId) {
   const now = new Date().toISOString();
   return db.bookings
-    .filter((b) => b.user_id === userId && b.status === 'confirmed' && b.start_datetime >= now)
+    .filter((b) => b.user_id === userId && isBookedStatus(b.status) && b.start_datetime >= now)
     .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime))
     .slice(0, 20);
 }
 
 export function getLastBooking(db, userId) {
-  const list = db.bookings.filter((b) => b.user_id === userId && b.status === 'confirmed');
+  const list = db.bookings.filter((b) => b.user_id === userId && isBookedStatus(b.status));
   if (!list.length) return null;
   return list.sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
 }
@@ -230,7 +235,7 @@ export function getBookingsNeedingReminder(db) {
   const minUntil = 59 * 60 * 1000;
   const maxUntil = 61 * 60 * 1000;
   return db.bookings.filter((b) => {
-    if (b.status !== 'confirmed' || b.reminder_sent !== 0) return false;
+    if (!isBookedStatus(b.status) || b.reminder_sent !== 0) return false;
     const start = new Date(b.start_datetime).getTime();
     const until = start - now;
     return until >= minUntil && until <= maxUntil;
@@ -243,7 +248,7 @@ const REVIEW_2GIS_DELAY_MS = 60 * 60 * 1000;
 export function getBookingsNeedingReview2gis(db) {
   const now = Date.now();
   return db.bookings.filter((b) => {
-    if (b.status !== 'confirmed') return false;
+    if (!isBookedStatus(b.status)) return false;
     if (b.review_2gis_eligible !== 1) return false;
     if (b.review_2gis_sent !== 0) return false;
     const start = new Date(b.start_datetime).getTime();
@@ -261,7 +266,7 @@ export function markReview2gisSent(db, bookingId) {
 export function getStatsForPeriod(db, startIso, endIso) {
   const bookings = db.bookings.filter(
     (b) =>
-      b.status === 'confirmed' &&
+      isBookedStatus(b.status) &&
       b.start_datetime >= startIso &&
       b.start_datetime < endIso,
   );
@@ -287,11 +292,25 @@ export function resetBookings(db) {
   persist(db);
 }
 
+export function cancelBooking(db, bookingId, userId) {
+  const b = db.bookings.find((x) => Number(x.id) === Number(bookingId));
+  if (!b) return { ok: false, reason: 'not_found' };
+  if (Number(b.user_id) !== Number(userId)) return { ok: false, reason: 'forbidden' };
+  if (!isBookedStatus(b.status)) return { ok: false, reason: 'not_booked' };
+  const nowIso = new Date().toISOString();
+  if (String(b.start_datetime) < nowIso) return { ok: false, reason: 'past' };
+
+  b.status = 'cancelled';
+  b.cancelled_at = nowIso;
+  persist(db);
+  return { ok: true, booking: b };
+}
+
 /** Уникальные клиенты с агрегированными данными по броням — для экспорта */
 export function getAllClientsForExport(db) {
-  const confirmed = db.bookings.filter((b) => b.status === 'confirmed');
+  const booked = db.bookings.filter((b) => isBookedStatus(b.status));
   const map = {};
-  for (const b of confirmed) {
+  for (const b of booked) {
     const uid = String(b.user_id);
     if (!map[uid]) map[uid] = { bookingCount: 0, totalSpent: 0, lastBooking: null };
     map[uid].bookingCount++;
@@ -317,7 +336,7 @@ export function getAllClientsForExport(db) {
 /** Все подтверждённые брони с данными клиента — для экспорта */
 export function getAllBookingsForExport(db) {
   return db.bookings
-    .filter((b) => b.status === 'confirmed')
+    .filter((b) => isBookedStatus(b.status))
     .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime))
     .map((b) => {
       const user = db.users[String(b.user_id)] ?? {};
