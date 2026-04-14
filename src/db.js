@@ -10,7 +10,7 @@ function resolvePath() {
 }
 
 function emptyStore() {
-  return { version: 1, users: {}, bookings: [], nextBookingId: 1, promo_codes: [] };
+  return { version: 1, users: {}, bookings: [], nextBookingId: 1, promo_codes: [], pending_registrations: [] };
 }
 
 function persist(db) {
@@ -41,6 +41,7 @@ export function openDb() {
   if (!Array.isArray(db.bookings)) db.bookings = [];
   if (typeof db.nextBookingId !== 'number' || db.nextBookingId < 1) db.nextBookingId = 1;
   if (!Array.isArray(db.promo_codes)) db.promo_codes = [];
+  if (!Array.isArray(db.pending_registrations)) db.pending_registrations = [];
   persist(db);
   return db;
 }
@@ -352,4 +353,48 @@ export function getAllBookingsForExport(db) {
         promoCode: b.promo_code ?? null,
       };
     });
+}
+
+/** Сохранить попытку регистрации пользователя */
+export function saveRegistrationAttempt(db, userId, telegramName) {
+  const existing = db.pending_registrations.find((r) => r.user_id === userId);
+  if (existing) {
+    existing.updated_at = new Date().toISOString();
+    existing.telegram_name = telegramName ?? existing.telegram_name ?? '';
+    existing.status = 'pending';
+  } else {
+    db.pending_registrations.push({
+      user_id: userId,
+      telegram_name: telegramName ?? '',
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      completed_at: null,
+    });
+  }
+  persist(db);
+}
+
+/** Завершить регистрацию (переместить в users, удалить из pending) */
+export function completeRegistration(db, userId) {
+  const idx = db.pending_registrations.findIndex((r) => r.user_id === userId);
+  if (idx !== -1) {
+    const reg = db.pending_registrations[idx];
+    reg.status = 'completed';
+    reg.completed_at = new Date().toISOString();
+    db.pending_registrations.splice(idx, 1);
+    persist(db);
+  }
+}
+
+/** Получить список всех попыток регистрации (завершённых и незавершённых) */
+export function getPendingRegistrations(db) {
+  return db.pending_registrations.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Получить список незавершённых регистраций */
+export function getIncompleteRegistrations(db) {
+  return db.pending_registrations
+    .filter((r) => r.status === 'pending')
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }

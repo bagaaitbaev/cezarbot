@@ -12,9 +12,11 @@ const __projectRoot = path.join(__botDir, '..');
 import {
   analyzeOverlapForSlot,
   clearUserPromoPending,
+  completeRegistration,
   createPromoCode,
   getAllBookingsForExport,
   getAllClientsForExport,
+  getIncompleteRegistrations,
   getLastBooking,
   getStatsForPeriod,
   getUser,
@@ -25,6 +27,7 @@ import {
   listActivePromoCodes,
   markPromoUsed,
   resetBookings,
+  saveRegistrationAttempt,
   setUserPromoPending,
   validatePromoCode,
   disablePromoCode,
@@ -472,6 +475,64 @@ export function createBot(db) {
     );
   });
 
+  bot.command('registrations', async (ctx) => {
+    const lang = getLang(ctx);
+    if (!isOperatorCtx(ctx)) {
+      await ctx.reply(t(lang, 'operator_only_short'));
+      return;
+    }
+    const incomplete = getIncompleteRegistrations(db);
+    if (!incomplete.length) {
+      await ctx.reply('✅ Все попытки регистрации завершены!');
+      return;
+    }
+    let msg = `⏳ НЕЗАВЕРШЁННЫЕ РЕГИСТРАЦИИ: ${incomplete.length}\n\n`;
+    incomplete.forEach((reg, idx) => {
+      const updated = new Date(reg.updated_at);
+      const now = new Date();
+      const diffSeconds = Math.floor((now - updated) / 1000);
+      let timeAgo = '';
+      if (diffSeconds < 60) {
+        timeAgo = 'только что';
+      } else if (diffSeconds < 3600) {
+        timeAgo = `${Math.floor(diffSeconds / 60)} мин`;
+      } else if (diffSeconds < 86400) {
+        timeAgo = `${Math.floor(diffSeconds / 3600)} ч`;
+      } else {
+        timeAgo = `${Math.floor(diffSeconds / 86400)} дн`;
+      }
+      msg += `${idx + 1}. ${reg.telegram_name} (ID: ${reg.user_id})\n`;
+      msg += `   ⏭️ ${timeAgo} назад\n\n`;
+    });
+    await ctx.reply(msg);
+  });
+
+  bot.command('users', async (ctx) => {
+    const lang = getLang(ctx);
+    if (!isOperatorCtx(ctx)) {
+      await ctx.reply(t(lang, 'operator_only_short'));
+      return;
+    }
+    const users = Object.values(db.users).sort((a, b) =>
+      b.updated_at.localeCompare(a.updated_at)
+    );
+    if (!users.length) {
+      await ctx.reply('📭 Нет зарегистрировавшихся пользователей.');
+      return;
+    }
+    let msg = `✅ ЗАРЕГИСТРИРОВАННЫЕ ПОЛЬЗОВАТЕЛИ: ${users.length}\n\n`;
+    users.forEach((user, idx) => {
+      const updated = new Date(user.updated_at);
+      const updated_text = updated.toLocaleString('ru-RU');
+      msg += `${idx + 1}. <b>${user.telegram_name || '—'}</b>\n`;
+      msg += `   ID: ${user.user_id}\n`;
+      msg += `   📞 ${user.phone || '—'}\n`;
+      msg += `   🌐 ${user.lang || 'не указан'}\n`;
+      msg += `   📅 ${updated_text}\n\n`;
+    });
+    await ctx.reply(msg, { parse_mode: 'HTML' });
+  });
+
   bot.command('cancel', async (ctx) => {
     const lang = getLang(ctx);
     ctx.session.step = 'idle';
@@ -524,6 +585,8 @@ export function createBot(db) {
 
   bot.hears(/^(📝 Регистрация|📝 Тіркелу)$/, async (ctx) => {
     const lang = getLang(ctx);
+    const name = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ');
+    saveRegistrationAttempt(db, ctx.from.id, name);
     ctx.session.step = 'register_phone';
     await ctx.reply(t(lang, 'register_prompt'), phoneKeyboard(lang));
   });
@@ -930,6 +993,7 @@ export function createBot(db) {
     const name = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ');
     upsertUserPhone(db, ctx.from.id, name, phone);
     if (ctx.session.step === 'register_phone') {
+      completeRegistration(db, ctx.from.id);
       ctx.session.step = 'idle';
       ctx.session.draft = emptyDraft();
       await ctx.reply(t(lang, 'register_done'), mainKeyboard(lang));
