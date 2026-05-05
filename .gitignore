@@ -41,6 +41,8 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
+.wwebjs_auth/
+.wwebjs_cache/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
@@ -77,6 +79,8 @@ web_modules/
 
 # Runtime data files
 data/sessions.json
+data/whatsapp-sessions.json
+data/whatsapp-qr.png
 data/store.json
 .env.development.local
 .env.test.local

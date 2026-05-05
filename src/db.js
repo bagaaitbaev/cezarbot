@@ -296,7 +296,7 @@ export function resetBookings(db) {
 export function cancelBooking(db, bookingId, userId) {
   const b = db.bookings.find((x) => Number(x.id) === Number(bookingId));
   if (!b) return { ok: false, reason: 'not_found' };
-  if (Number(b.user_id) !== Number(userId)) return { ok: false, reason: 'forbidden' };
+  if (String(b.user_id) !== String(userId)) return { ok: false, reason: 'forbidden' };
   if (!isBookedStatus(b.status)) return { ok: false, reason: 'not_booked' };
   const nowIso = new Date().toISOString();
   if (String(b.start_datetime) < nowIso) return { ok: false, reason: 'past' };
