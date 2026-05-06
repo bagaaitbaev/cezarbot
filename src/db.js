@@ -17,6 +17,111 @@ function persist(db) {
   const p = resolvePath();
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, JSON.stringify(db, null, 2), 'utf8');
+  exportCsvFiles(db);
+}
+
+const CSV_SEP = ';';
+
+function csvCell(v) {
+  const s = v == null ? '' : String(v);
+  if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function sourceLabel(userId) {
+  return String(userId).includes('@') ? 'WhatsApp' : 'Telegram';
+}
+
+function normalizePhone(phone) {
+  return String(phone ?? '').replace(/\D/g, '');
+}
+
+function writeCsv(filePath, headers, rows) {
+  const lines = [headers.map(csvCell).join(CSV_SEP)];
+  for (const row of rows) lines.push(row.map(csvCell).join(CSV_SEP));
+  fs.writeFileSync(filePath, '\uFEFF' + lines.join('\r\n'), 'utf8');
+}
+
+export function exportCsvFiles(db) {
+  if (process.env.AUTO_EXPORT_CSV === '0') return;
+
+  const dataDir = path.dirname(resolvePath());
+  fs.mkdirSync(dataDir, { recursive: true });
+
+  const users = db.users || {};
+  const bookings = Array.isArray(db.bookings) ? db.bookings : [];
+  const bookingRows = bookings.map((b) => {
+    const u = users[String(b.user_id)] || {};
+    return [
+      b.id,
+      sourceLabel(b.user_id),
+      u.telegram_name || '',
+      u.phone || '',
+      b.zone,
+      b.start_datetime,
+      b.duration_minutes,
+      b.with_combo ? 'да' : 'нет',
+      b.total_price,
+      b.promo_code || '',
+      b.status,
+      b.created_at,
+    ];
+  });
+
+  writeCsv(
+    path.join(dataDir, 'bookings_export.csv'),
+    [
+      'Номер брони',
+      'Источник',
+      'Клиент',
+      'Телефон',
+      'Зона',
+      'Дата и время',
+      'Длительность, мин',
+      'Комбо',
+      'Сумма, тг',
+      'Промокод',
+      'Статус',
+      'Создано',
+    ],
+    bookingRows,
+  );
+
+  const clientMap = new Map();
+  for (const b of bookings.filter((x) => isBookedStatus(x.status))) {
+    const u = users[String(b.user_id)] || {};
+    const phone = normalizePhone(u.phone);
+    const key = phone || `user:${String(b.user_id)}`;
+    const existing =
+      clientMap.get(key) ||
+      {
+        sources: new Set(),
+        name: u.telegram_name || '',
+        phone,
+        count: 0,
+        total: 0,
+        lastBooking: '',
+      };
+    existing.sources.add(sourceLabel(b.user_id));
+    existing.name = u.telegram_name || existing.name;
+    existing.phone = phone || existing.phone;
+    existing.count += 1;
+    existing.total += Number(b.total_price || 0);
+    if (!existing.lastBooking || b.start_datetime > existing.lastBooking) {
+      existing.lastBooking = b.start_datetime;
+    }
+    clientMap.set(key, existing);
+  }
+
+  const clientRows = [...clientMap.values()]
+    .sort((a, b) => (b.lastBooking || '').localeCompare(a.lastBooking || ''))
+    .map((c) => [[...c.sources].join(', '), c.name, c.phone, c.count, c.lastBooking, c.total]);
+
+  writeCsv(
+    path.join(dataDir, 'clients_export.csv'),
+    ['Источник', 'Клиент', 'Телефон', 'Количество броней', 'Последняя бронь', 'Всего потратил, тг'],
+    clientRows,
+  );
 }
 
 function isBookedStatus(status) {
