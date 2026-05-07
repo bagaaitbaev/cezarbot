@@ -188,10 +188,12 @@ label {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+.combo-row {
+  grid-template-columns: 1fr;
+}
 .switch {
-  min-height: 68px;
+  min-height: 42px;
   display: grid;
-  align-content: end;
 }
 .switch input {
   position: absolute;
@@ -312,7 +314,37 @@ label {
 .booking-card strong {
   display: block;
   font-size: 15px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+}
+.booking-primary {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 3px;
+}
+.booking-phone {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 9px;
+}
+.booking-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+.booking-badges span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 8px;
+  background: rgba(0, 113, 227, 0.1);
+  color: #075eb8;
+  padding: 0 9px;
+  font-size: 13px;
+  font-weight: 700;
 }
 .booking-meta, .booking-client {
   color: var(--muted);

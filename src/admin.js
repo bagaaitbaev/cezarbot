@@ -30,6 +30,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 const publicDir = path.join(projectRoot, 'public', 'admin');
 const TZ = process.env.TZ || 'Asia/Almaty';
+const SEATS_BY_ZONE = {
+  zal: ['1', '2', '3', '4', '5'],
+  cabinet: ['6', '7', '8'],
+  vip: ['9', '10'],
+};
 
 loadEnvFile();
 process.env.DB_PATH ||= path.join(projectRoot, 'data', 'store.json');
@@ -119,6 +124,7 @@ function bookingView(booking) {
     status: booking.status,
     zone: booking.zone,
     zoneLabel: ZONES[booking.zone]?.label || booking.zone,
+    seat: booking.seat || '',
     date: start.format('YYYY-MM-DD'),
     time: start.format('HH:mm'),
     startDatetime: booking.start_datetime,
@@ -144,10 +150,12 @@ function listBookings(date) {
 
 function validateBookingPayload(payload, excludeId = null) {
   const zone = String(payload.zone || '');
+  const seat = String(payload.seat || '').replace(/\D/g, '');
   const durationMinutes = Number(payload.durationMinutes || 0);
   const withCombo = durationMinutes === 60 ? false : Boolean(payload.withCombo);
   const startIso = localIso(payload.date, payload.time);
   if (!ZONES[zone]) return { ok: false, error: 'Выберите зону.' };
+  if (!SEATS_BY_ZONE[zone]?.includes(seat)) return { ok: false, error: 'Выберите место для этой зоны.' };
   if (!startIso) return { ok: false, error: 'Проверьте дату и время.' };
   if (![60, 180, 300].includes(durationMinutes)) return { ok: false, error: 'Выберите длительность.' };
   const closing = validateBookingFitsClosing(startIso, durationMinutes, 'ru');
@@ -156,7 +164,16 @@ function validateBookingPayload(payload, excludeId = null) {
   const endMs = startMs + durationMinutes * 60_000;
   const overlap = analyzeOverlapForSlot(db, zone, startMs, endMs, excludeId);
   if (overlap.count >= (ZONE_CAPACITY[zone] || 1)) return { ok: false, error: 'На это время мест уже нет.' };
-  return { ok: true, startIso, zone, durationMinutes, withCombo };
+  const seatBusy = db.bookings.some((booking) => {
+    if (excludeId != null && Number(booking.id) === Number(excludeId)) return false;
+    if (!isBookedStatus(booking.status)) return false;
+    if (booking.zone !== zone || String(booking.seat || '') !== seat) return false;
+    const bookingStart = new Date(booking.start_datetime).getTime();
+    const bookingEnd = bookingStart + Number(booking.duration_minutes || 0) * 60_000;
+    return startMs < bookingEnd && bookingStart < endMs;
+  });
+  if (seatBusy) return { ok: false, error: `Место ${seat} уже занято на это время.` };
+  return { ok: true, startIso, zone, seat, durationMinutes, withCombo };
 }
 
 function normalizePhone(phone) {
@@ -173,6 +190,7 @@ function createManualBooking(payload) {
   const booking = insertBooking(db, {
     userId,
     zone: valid.zone,
+    seat: valid.seat,
     startDatetimeIso: valid.startIso,
     durationMinutes: valid.durationMinutes,
     withCombo: valid.withCombo,
@@ -191,6 +209,7 @@ function updateExistingBooking(id, payload) {
   const total = getPrice(valid.zone, valid.durationMinutes, valid.withCombo) || Number(existing.total_price || 0);
   const patch = {
     zone: valid.zone,
+    seat: valid.seat,
     start_datetime: valid.startIso,
     duration_minutes: valid.durationMinutes,
     with_combo: valid.withCombo ? 1 : 0,

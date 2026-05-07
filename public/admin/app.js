@@ -20,6 +20,12 @@ const bookingForm = $('#bookingForm');
 const dateInput = $('#dateInput');
 const columns = $('#columns');
 
+const SEATS_BY_ZONE = {
+  zal: [1, 2, 3, 4, 5],
+  cabinet: [6, 7, 8],
+  vip: [9, 10],
+};
+
 function money(value) {
   return `${new Intl.NumberFormat('ru-RU').format(Number(value || 0))} ₸`;
 }
@@ -71,6 +77,7 @@ function formPayload() {
     clientName: fd.get('clientName'),
     phone: fd.get('phone'),
     zone: fd.get('zone'),
+    seat: fd.get('seat'),
     time: fd.get('time'),
     durationMinutes: Number(fd.get('durationMinutes')),
     withCombo: fd.get('withCombo') === 'on',
@@ -86,6 +93,7 @@ function resetForm() {
   bookingForm.elements.time.value = '15:00';
   $('#formTitle').textContent = 'Новая бронь';
   $('#formError').textContent = '';
+  syncSeatOptions();
   syncComboAvailability();
 }
 
@@ -94,6 +102,7 @@ function editBooking(booking) {
   bookingForm.elements.clientName.value = booking.clientName || '';
   bookingForm.elements.phone.value = booking.phone || '';
   bookingForm.elements.zone.value = booking.zone;
+  syncSeatOptions(booking.seat);
   bookingForm.elements.time.value = booking.time;
   bookingForm.elements.durationMinutes.value = booking.durationMinutes;
   bookingForm.elements.withCombo.checked = booking.withCombo;
@@ -102,6 +111,15 @@ function editBooking(booking) {
   $('#formError').textContent = '';
   syncComboAvailability();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function syncSeatOptions(preferredSeat = null) {
+  const zone = bookingForm.elements.zone.value;
+  const seatSelect = bookingForm.elements.seat;
+  const seats = SEATS_BY_ZONE[zone] || [];
+  const current = preferredSeat ?? seatSelect.value;
+  seatSelect.innerHTML = seats.map((seat) => `<option value="${seat}">Место ${seat}</option>`).join('');
+  if (seats.map(String).includes(String(current))) seatSelect.value = String(current);
 }
 
 function syncComboAvailability() {
@@ -133,10 +151,17 @@ function bookingCard(booking) {
   const clientName = escapeHtml(booking.clientName || 'Клиент');
   const phone = escapeHtml(booking.phone);
   const note = escapeHtml(booking.note);
+  const zoneLabel = escapeHtml(booking.zoneLabel || booking.zone);
+  const seat = booking.seat ? escapeHtml(`Место ${booking.seat}`) : 'Место не выбрано';
   card.innerHTML = `
     <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
+    <div class="booking-primary">${clientName}</div>
+    <div class="booking-phone">${phone || 'Телефон не указан'}</div>
+    <div class="booking-badges">
+      <span>${zoneLabel}</span>
+      <span>${seat}</span>
+    </div>
     <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
-    <div class="booking-client">${clientName}${phone ? ` · ${phone}` : ''}</div>
     ${note ? `<div class="booking-client">${note}</div>` : ''}
     <div class="booking-actions">
       <button class="ghost small" data-action="edit">Изменить</button>
@@ -234,6 +259,7 @@ bookingForm.addEventListener('submit', async (event) => {
 });
 
 $('#resetForm').addEventListener('click', resetForm);
+bookingForm.elements.zone.addEventListener('change', () => syncSeatOptions());
 bookingForm.elements.durationMinutes.addEventListener('change', syncComboAvailability);
 $('#prevDay').addEventListener('click', () => shiftDay(-1));
 $('#nextDay').addEventListener('click', () => shiftDay(1));
@@ -252,4 +278,6 @@ $('#logoutBtn').addEventListener('click', async () => {
   showLogin();
 });
 
+syncSeatOptions();
+syncComboAvailability();
 loadDashboard().catch(() => showLogin());

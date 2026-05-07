@@ -62,9 +62,12 @@
                     <option value="vip">VIP</option>
                   </select>
                 </label>
-                <label>Время<input name="time" type="time" value="15:00" /></label>
+                <label>Место
+                  <select name="seat"></select>
+                </label>
               </div>
               <div class="grid-2">
+                <label>Время<input name="time" type="time" value="15:00" /></label>
                 <label>Длительность
                   <select name="durationMinutes">
                     <option value="60">1 час</option>
@@ -72,6 +75,8 @@
                     <option value="300">5 часов</option>
                   </select>
                 </label>
+              </div>
+              <div class="grid-2 combo-row">
                 <label class="switch"><input name="withCombo" type="checkbox" /><span>Комбо</span></label>
               </div>
               <label>Комментарий<textarea name="note" rows="3" placeholder="Например: звонок, предоплата, пожелания"></textarea></label>

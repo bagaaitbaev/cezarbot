@@ -60,6 +60,7 @@ export function exportCsvFiles(db) {
       u.telegram_name || '',
       u.phone || '',
       b.zone,
+      b.seat || '',
       b.start_datetime,
       b.duration_minutes,
       b.with_combo ? 'да' : 'нет',
@@ -78,6 +79,7 @@ export function exportCsvFiles(db) {
       'Клиент',
       'Телефон',
       'Зона',
+      'Место',
       'Дата и время',
       'Длительность, мин',
       'Комбо',
@@ -184,13 +186,14 @@ export function getUser(db, userId) {
 
 export function insertBooking(
   db,
-  { userId, zone, startDatetimeIso, durationMinutes, withCombo, totalPrice, promoCode = null, source = null, note = '' },
+  { userId, zone, seat = '', startDatetimeIso, durationMinutes, withCombo, totalPrice, promoCode = null, source = null, note = '' },
 ) {
   const id = db.nextBookingId++;
   const booking = {
     id,
     user_id: userId,
     zone,
+    seat: seat || '',
     start_datetime: startDatetimeIso,
     duration_minutes: durationMinutes,
     with_combo: withCombo ? 1 : 0,
@@ -476,6 +479,7 @@ export function getAllBookingsForExport(db) {
         name: user.telegram_name || '—',
         phone: user.phone || '—',
         zone: b.zone,
+        seat: b.seat || '',
         durationMinutes: b.duration_minutes,
         withCombo: b.with_combo,
         totalPrice: b.total_price,
