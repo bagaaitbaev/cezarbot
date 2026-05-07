@@ -25,6 +25,28 @@ data/whatsapp-qr.png
 
 The bot refreshes this image whenever WhatsApp sends a new QR code.
 
+## Pair with phone number
+
+If WhatsApp says that linking devices is temporarily unavailable when scanning
+the QR code, use phone-number pairing instead. Add the bot account phone number
+to `.env` in international format, without `+`:
+
+```env
+WHATSAPP_PAIRING_PHONE=77001234567
+```
+
+Restart the WhatsApp process and read the PM2 logs. The bot will print a pairing
+code:
+
+```text
+[CEZAR WhatsApp] Pairing code: ABCD-EFGH
+```
+
+On the phone, open WhatsApp -> Settings -> Linked devices -> Link with phone
+number, then enter that code. After successful linking, you can remove
+`WHATSAPP_PAIRING_PHONE` from `.env` or leave it there; the saved WhatsApp Web
+session will be reused.
+
 The WhatsApp Web session is stored in `.wwebjs_auth/`. User flow sessions are
 stored in `data/whatsapp-sessions.json`.
 
@@ -35,6 +57,7 @@ Add these values to `.env` when needed:
 ```env
 OPERATOR_WHATSAPP_IDS=77001234567,77007654321
 WHATSAPP_CLIENT_ID=cezarbot
+WHATSAPP_PAIRING_PHONE=77001234567
 ```
 
 `OPERATOR_WHATSAPP_IDS` accepts international phone numbers without `+`, or full

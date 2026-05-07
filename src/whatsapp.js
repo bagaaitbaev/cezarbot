@@ -688,6 +688,8 @@ loadEnvFile();
 const dbPath = process.env.DB_PATH || path.join(projectRoot, 'data', 'store.json');
 process.env.DB_PATH = dbPath;
 const db = openDb();
+const pairingPhone = String(process.env.WHATSAPP_PAIRING_PHONE ?? '').replace(/\D/g, '');
+const pairingEnabled = pairingPhone.length > 0;
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: process.env.WHATSAPP_CLIENT_ID || 'cezarbot' }),
@@ -695,7 +697,21 @@ const client = new Client({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   },
+  ...(pairingEnabled
+    ? {
+        pairWithPhoneNumber: {
+          phoneNumber: pairingPhone,
+          showNotification: true,
+          intervalMs: 180_000,
+        },
+      }
+    : {}),
 });
+
+if (pairingEnabled) {
+  console.log(`[CEZAR WhatsApp] Pairing by phone is enabled for ${pairingPhone}.`);
+  console.log('[CEZAR WhatsApp] Open WhatsApp -> Settings -> Linked devices -> Link with phone number.');
+}
 
 client.on('qr', (qr) => {
   console.log('[CEZAR WhatsApp] Scan this QR code in WhatsApp:');
@@ -708,6 +724,13 @@ client.on('qr', (qr) => {
     .catch((e) => {
       console.error('[CEZAR WhatsApp] Could not save QR image:', e?.message ?? e);
     });
+});
+
+client.on('code', (code) => {
+  console.log('');
+  console.log(`[CEZAR WhatsApp] Pairing code: ${code}`);
+  console.log('[CEZAR WhatsApp] Enter it in WhatsApp -> Settings -> Linked devices -> Link with phone number.');
+  console.log('');
 });
 
 client.on('ready', () => {
