@@ -11,6 +11,7 @@ function todayLocal() {
 const state = {
   date: todayLocal(),
   dashboard: null,
+  user: null,
 };
 
 const login = $('#login');
@@ -67,6 +68,12 @@ function showLogin() {
 function showApp() {
   login.classList.add('hidden');
   app.classList.remove('hidden');
+  renderCurrentUser();
+}
+
+function renderCurrentUser() {
+  const label = state.user?.name || state.user?.username || 'Сотрудник';
+  $('#currentUser').textContent = label;
 }
 
 function formPayload() {
@@ -214,6 +221,10 @@ function renderDashboard(data) {
 }
 
 async function loadDashboard() {
+  if (!state.user) {
+    const me = await api('/api/me');
+    state.user = me.user;
+  }
   const data = await api(`/api/dashboard?date=${state.date}`);
   renderDashboard(data);
 }
@@ -234,6 +245,8 @@ loginForm.addEventListener('submit', async (event) => {
     await api('/api/login', {
       method: 'POST',
       body: JSON.stringify({ user: fd.get('user'), password: fd.get('password') }),
+    }).then((data) => {
+      state.user = data.user;
     });
     await loadDashboard();
   } catch (e) {
@@ -275,6 +288,7 @@ dateInput.addEventListener('change', () => {
 });
 $('#logoutBtn').addEventListener('click', async () => {
   await api('/api/logout', { method: 'POST' }).catch(() => {});
+  state.user = null;
   showLogin();
 });
 

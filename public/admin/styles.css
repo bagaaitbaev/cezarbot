@@ -129,6 +129,17 @@ input:focus, select:focus, textarea:focus {
   justify-content: flex-end;
 }
 .top-actions input { width: 154px; }
+.user-pill {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  background: rgba(0, 113, 227, 0.1);
+  color: #075eb8;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
 .stats {
   max-width: 1440px;
   margin: 0 auto 18px;

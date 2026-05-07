@@ -41,9 +41,8 @@ process.env.DB_PATH ||= path.join(projectRoot, 'data', 'store.json');
 
 const db = openDb();
 const port = Number(process.env.ADMIN_PORT || 3000);
-const adminUser = process.env.ADMIN_USER || 'admin';
-const adminPassword = process.env.ADMIN_PASSWORD || 'cezar2026';
 const sessionSecret = process.env.ADMIN_SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const adminUsers = parseAdminUsers();
 
 function loadEnvFile() {
   const envPath = path.join(projectRoot, '.env');
@@ -87,17 +86,72 @@ function readBody(req) {
   });
 }
 
-function sessionToken() {
-  return crypto.createHash('sha256').update(`${adminUser}:${adminPassword}:${sessionSecret}`).digest('hex');
+function parseAdminUsers() {
+  const raw = process.env.ADMIN_USERS?.trim();
+  const fallbackUser = process.env.ADMIN_USER || 'admin';
+  const fallbackPassword = process.env.ADMIN_PASSWORD || 'cezar2026';
+  if (!raw) {
+    return [
+      {
+        username: fallbackUser,
+        password: fallbackPassword,
+        name: fallbackUser,
+        role: 'admin',
+      },
+    ];
+  }
+
+  return raw
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [username, password, name = username, role = 'staff'] = entry.split(':').map((x) => x.trim());
+      return username && password ? { username, password, name, role } : null;
+    })
+    .filter(Boolean);
 }
 
-function isAuthed(req) {
+function publicUser(user) {
+  if (!user) return null;
+  return { username: user.username, name: user.name, role: user.role };
+}
+
+function signPayload(payload) {
+  return crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url');
+}
+
+function sessionToken(user) {
+  const payload = Buffer.from(
+    JSON.stringify({
+      user: user.username,
+      exp: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    }),
+  ).toString('base64url');
+  return `${payload}.${signPayload(payload)}`;
+}
+
+function sessionUser(req) {
   const cookie = req.headers.cookie || '';
-  return cookie.split(';').some((x) => x.trim() === `cezar_admin=${sessionToken()}`);
+  const raw = cookie
+    .split(';')
+    .map((x) => x.trim())
+    .find((x) => x.startsWith('cezar_admin='))
+    ?.slice('cezar_admin='.length);
+  if (!raw) return null;
+  const [payload, signature] = raw.split('.');
+  if (!payload || !signature || signPayload(payload) !== signature) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!parsed.user || Number(parsed.exp || 0) < Date.now()) return null;
+    return adminUsers.find((user) => user.username === parsed.user) || null;
+  } catch {
+    return null;
+  }
 }
 
-function setAuthCookie(res) {
-  res.setHeader('Set-Cookie', `cezar_admin=${sessionToken()}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`);
+function setAuthCookie(res, user) {
+  res.setHeader('Set-Cookie', `cezar_admin=${sessionToken(user)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`);
 }
 
 function clearAuthCookie(res) {
@@ -134,6 +188,12 @@ function bookingView(booking) {
     totalPrice: Number(booking.total_price || 0),
     promoCode: booking.promo_code || '',
     note: booking.note || '',
+    createdBy: booking.created_by || '',
+    createdByName: booking.created_by_name || '',
+    updatedBy: booking.updated_by || '',
+    updatedByName: booking.updated_by_name || '',
+    cancelledBy: booking.cancelled_by || '',
+    cancelledByName: booking.cancelled_by_name || '',
     clientName: user.telegram_name || 'Клиент',
     phone: user.phone || '',
     userId: booking.user_id,
@@ -180,7 +240,15 @@ function normalizePhone(phone) {
   return String(phone || '').replace(/\D/g, '');
 }
 
-function createManualBooking(payload) {
+function actorFields(actor, prefix) {
+  return {
+    [`${prefix}_by`]: actor?.username || '',
+    [`${prefix}_by_name`]: actor?.name || actor?.username || '',
+    [`${prefix}_at`]: new Date().toISOString(),
+  };
+}
+
+function createManualBooking(payload, actor) {
   const valid = validateBookingPayload(payload);
   if (!valid.ok) return valid;
   const phone = normalizePhone(payload.phone);
@@ -197,11 +265,13 @@ function createManualBooking(payload) {
     totalPrice: total,
     source: 'Сотрудник',
     note: String(payload.note || '').trim(),
+    createdBy: actor?.username || '',
+    createdByName: actor?.name || actor?.username || '',
   });
   return { ok: true, booking: bookingView(booking) };
 }
 
-function updateExistingBooking(id, payload) {
+function updateExistingBooking(id, payload, actor) {
   const existing = db.bookings.find((b) => Number(b.id) === Number(id));
   if (!existing || !isBookedStatus(existing.status)) return { ok: false, error: 'Бронь не найдена.' };
   const valid = validateBookingPayload(payload, id);
@@ -215,6 +285,7 @@ function updateExistingBooking(id, payload) {
     with_combo: valid.withCombo ? 1 : 0,
     total_price: total,
     note: String(payload.note || '').trim(),
+    ...actorFields(actor, 'updated'),
   };
   const phone = normalizePhone(payload.phone);
   if (phone || payload.clientName) {
@@ -245,9 +316,10 @@ function dashboard(date) {
 async function handleApi(req, res, pathname) {
   if (pathname === '/api/login' && req.method === 'POST') {
     const body = await readBody(req);
-    if (body.user === adminUser && body.password === adminPassword) {
-      setAuthCookie(res);
-      return json(res, 200, { ok: true });
+    const user = adminUsers.find((x) => x.username === body.user && x.password === body.password);
+    if (user) {
+      setAuthCookie(res, user);
+      return json(res, 200, { ok: true, user: publicUser(user) });
     }
     return json(res, 401, { ok: false, error: 'Неверный логин или пароль.' });
   }
@@ -255,16 +327,17 @@ async function handleApi(req, res, pathname) {
     clearAuthCookie(res);
     return json(res, 200, { ok: true });
   }
-  if (!isAuthed(req)) return json(res, 401, { ok: false, error: 'Нужен вход.' });
+  const actor = sessionUser(req);
+  if (!actor) return json(res, 401, { ok: false, error: 'Нужен вход.' });
 
   const url = new URL(req.url, `http://${req.headers.host}`);
-  if (pathname === '/api/me') return json(res, 200, { ok: true, user: adminUser });
+  if (pathname === '/api/me') return json(res, 200, { ok: true, user: publicUser(actor) });
   if (pathname === '/api/dashboard') return json(res, 200, dashboard(url.searchParams.get('date') || dayjs().tz(TZ).format('YYYY-MM-DD')));
-  if (pathname === '/api/bookings' && req.method === 'POST') return json(res, 200, createManualBooking(await readBody(req)));
+  if (pathname === '/api/bookings' && req.method === 'POST') return json(res, 200, createManualBooking(await readBody(req), actor));
   const bookingMatch = pathname.match(/^\/api\/bookings\/(\d+)$/);
-  if (bookingMatch && req.method === 'PATCH') return json(res, 200, updateExistingBooking(bookingMatch[1], await readBody(req)));
+  if (bookingMatch && req.method === 'PATCH') return json(res, 200, updateExistingBooking(bookingMatch[1], await readBody(req), actor));
   if (bookingMatch && req.method === 'DELETE') {
-    const result = setBookingStatus(db, bookingMatch[1], 'cancelled');
+    const result = setBookingStatus(db, bookingMatch[1], 'cancelled', actorFields(actor, 'cancelled'));
     return json(res, result.ok ? 200 : 404, result.ok ? { ok: true } : { ok: false, error: 'Бронь не найдена.' });
   }
   if (pathname === '/api/clients') return json(res, 200, { ok: true, clients: getAllClientsForExport(db).slice(0, 200) });

@@ -186,7 +186,20 @@ export function getUser(db, userId) {
 
 export function insertBooking(
   db,
-  { userId, zone, seat = '', startDatetimeIso, durationMinutes, withCombo, totalPrice, promoCode = null, source = null, note = '' },
+  {
+    userId,
+    zone,
+    seat = '',
+    startDatetimeIso,
+    durationMinutes,
+    withCombo,
+    totalPrice,
+    promoCode = null,
+    source = null,
+    note = '',
+    createdBy = '',
+    createdByName = '',
+  },
 ) {
   const id = db.nextBookingId++;
   const booking = {
@@ -202,6 +215,8 @@ export function insertBooking(
     status: 'booked',
     source: source || sourceLabel(userId),
     note: note || '',
+    created_by: createdBy || '',
+    created_by_name: createdByName || '',
     reminder_sent: 0,
     review_2gis_eligible: 1,
     review_2gis_sent: 0,
@@ -220,11 +235,12 @@ export function updateBooking(db, bookingId, patch) {
   return { ok: true, booking };
 }
 
-export function setBookingStatus(db, bookingId, status) {
+export function setBookingStatus(db, bookingId, status, metadata = {}) {
   const booking = db.bookings.find((x) => Number(x.id) === Number(bookingId));
   if (!booking) return { ok: false, reason: 'not_found' };
   booking.status = status;
   booking.updated_at = new Date().toISOString();
+  Object.assign(booking, metadata);
   if (status === 'cancelled') booking.cancelled_at = booking.updated_at;
   persist(db);
   return { ok: true, booking };

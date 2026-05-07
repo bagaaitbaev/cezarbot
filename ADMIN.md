@@ -24,6 +24,21 @@ ADMIN_PASSWORD=change-this-password
 ADMIN_SESSION_SECRET=change-this-long-random-string
 ```
 
+For multiple staff accounts, use `ADMIN_USERS`:
+
+```env
+ADMIN_USERS=admin:password:Админ:admin;arina:password2:Арина:staff
+```
+
+Format:
+
+```text
+login:password:display name:role
+```
+
+When `ADMIN_USERS` is set, it replaces `ADMIN_USER` and `ADMIN_PASSWORD`.
+Manual bookings record which staff account created, edited, or cancelled them.
+
 The panel supports:
 
 - viewing bookings by day and zone
