@@ -1,7 +1,15 @@
 const $ = (selector) => document.querySelector(selector);
 
+function todayLocal() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const state = {
-  date: new Date().toISOString().slice(0, 10),
+  date: todayLocal(),
   dashboard: null,
 };
 
@@ -14,6 +22,13 @@ const columns = $('#columns');
 
 function money(value) {
   return `${new Intl.NumberFormat('ru-RU').format(Number(value || 0))} ₸`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return map[char];
+  });
 }
 
 function dayLabel(date) {
@@ -102,11 +117,15 @@ function bookingCard(booking) {
   card.className = 'booking-card';
   card.dataset.source = booking.source;
   card.dataset.status = booking.status;
+  const source = escapeHtml(booking.source);
+  const clientName = escapeHtml(booking.clientName || 'Клиент');
+  const phone = escapeHtml(booking.phone);
+  const note = escapeHtml(booking.note);
   card.innerHTML = `
-    <strong>${booking.time} - ${booking.endTime}</strong>
-    <div class="booking-meta">${booking.durationMinutes / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${booking.source}</span></div>
-    <div class="booking-client">${booking.clientName || 'Клиент'}${booking.phone ? ` · ${booking.phone}` : ''}</div>
-    ${booking.note ? `<div class="booking-client">${booking.note}</div>` : ''}
+    <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
+    <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
+    <div class="booking-client">${clientName}${phone ? ` · ${phone}` : ''}</div>
+    ${note ? `<div class="booking-client">${note}</div>` : ''}
     <div class="booking-actions">
       <button class="ghost small" data-action="edit">Изменить</button>
       ${booking.status !== 'cancelled' ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
@@ -142,7 +161,7 @@ function renderDashboard(data) {
     const activeCount = rows.filter((b) => b.status !== 'cancelled').length;
     column.innerHTML = `
       <div class="zone-title">
-        ${data.zones[zone].label}
+        ${escapeHtml(data.zones[zone].label)}
         <span>${activeCount}/${data.capacity[zone]} сейчас</span>
       </div>
     `;
@@ -206,7 +225,7 @@ $('#resetForm').addEventListener('click', resetForm);
 $('#prevDay').addEventListener('click', () => shiftDay(-1));
 $('#nextDay').addEventListener('click', () => shiftDay(1));
 $('#todayBtn').addEventListener('click', () => {
-  state.date = new Date().toISOString().slice(0, 10);
+  state.date = todayLocal();
   resetForm();
   loadDashboard().catch((e) => ($('#formError').textContent = e.message));
 });
