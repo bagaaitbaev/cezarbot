@@ -145,6 +145,7 @@ function listBookings(date) {
 function validateBookingPayload(payload, excludeId = null) {
   const zone = String(payload.zone || '');
   const durationMinutes = Number(payload.durationMinutes || 0);
+  const withCombo = durationMinutes === 60 ? false : Boolean(payload.withCombo);
   const startIso = localIso(payload.date, payload.time);
   if (!ZONES[zone]) return { ok: false, error: 'Выберите зону.' };
   if (!startIso) return { ok: false, error: 'Проверьте дату и время.' };
@@ -155,7 +156,7 @@ function validateBookingPayload(payload, excludeId = null) {
   const endMs = startMs + durationMinutes * 60_000;
   const overlap = analyzeOverlapForSlot(db, zone, startMs, endMs, excludeId);
   if (overlap.count >= (ZONE_CAPACITY[zone] || 1)) return { ok: false, error: 'На это время мест уже нет.' };
-  return { ok: true, startIso, zone, durationMinutes };
+  return { ok: true, startIso, zone, durationMinutes, withCombo };
 }
 
 function normalizePhone(phone) {
@@ -168,13 +169,13 @@ function createManualBooking(payload) {
   const phone = normalizePhone(payload.phone);
   const userId = phone ? `admin:${phone}` : `admin:guest:${Date.now()}`;
   upsertUserPhone(db, userId, String(payload.clientName || 'Ручная бронь').trim() || 'Ручная бронь', phone, { phoneSource: 'manual' });
-  const total = getPrice(valid.zone, valid.durationMinutes, Boolean(payload.withCombo)) || 0;
+  const total = getPrice(valid.zone, valid.durationMinutes, valid.withCombo) || 0;
   const booking = insertBooking(db, {
     userId,
     zone: valid.zone,
     startDatetimeIso: valid.startIso,
     durationMinutes: valid.durationMinutes,
-    withCombo: Boolean(payload.withCombo),
+    withCombo: valid.withCombo,
     totalPrice: total,
     source: 'Сотрудник',
     note: String(payload.note || '').trim(),
@@ -187,12 +188,12 @@ function updateExistingBooking(id, payload) {
   if (!existing || !isBookedStatus(existing.status)) return { ok: false, error: 'Бронь не найдена.' };
   const valid = validateBookingPayload(payload, id);
   if (!valid.ok) return valid;
-  const total = getPrice(valid.zone, valid.durationMinutes, Boolean(payload.withCombo)) || Number(existing.total_price || 0);
+  const total = getPrice(valid.zone, valid.durationMinutes, valid.withCombo) || Number(existing.total_price || 0);
   const patch = {
     zone: valid.zone,
     start_datetime: valid.startIso,
     duration_minutes: valid.durationMinutes,
-    with_combo: Boolean(payload.withCombo) ? 1 : 0,
+    with_combo: valid.withCombo ? 1 : 0,
     total_price: total,
     note: String(payload.note || '').trim(),
   };

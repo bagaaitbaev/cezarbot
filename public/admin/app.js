@@ -65,7 +65,7 @@ function showApp() {
 
 function formPayload() {
   const fd = new FormData(bookingForm);
-  return {
+  const payload = {
     id: fd.get('id'),
     date: state.date,
     clientName: fd.get('clientName'),
@@ -76,6 +76,8 @@ function formPayload() {
     withCombo: fd.get('withCombo') === 'on',
     note: fd.get('note'),
   };
+  if (payload.durationMinutes === 60) payload.withCombo = false;
+  return payload;
 }
 
 function resetForm() {
@@ -84,6 +86,7 @@ function resetForm() {
   bookingForm.elements.time.value = '15:00';
   $('#formTitle').textContent = 'Новая бронь';
   $('#formError').textContent = '';
+  syncComboAvailability();
 }
 
 function editBooking(booking) {
@@ -97,7 +100,16 @@ function editBooking(booking) {
   bookingForm.elements.note.value = booking.note || '';
   $('#formTitle').textContent = `Бронь #${booking.id}`;
   $('#formError').textContent = '';
+  syncComboAvailability();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function syncComboAvailability() {
+  const duration = Number(bookingForm.elements.durationMinutes.value);
+  const combo = bookingForm.elements.withCombo;
+  const unavailable = duration === 60;
+  if (unavailable) combo.checked = false;
+  combo.disabled = unavailable;
 }
 
 async function cancelBooking(id) {
@@ -222,6 +234,7 @@ bookingForm.addEventListener('submit', async (event) => {
 });
 
 $('#resetForm').addEventListener('click', resetForm);
+bookingForm.elements.durationMinutes.addEventListener('change', syncComboAvailability);
 $('#prevDay').addEventListener('click', () => shiftDay(-1));
 $('#nextDay').addEventListener('click', () => shiftDay(1));
 $('#todayBtn').addEventListener('click', () => {

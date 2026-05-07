@@ -224,7 +224,7 @@ label {
 .switch span::before {
   content: "";
   position: absolute;
-  right: 21px;
+  right: 28px;
   top: 50%;
   width: 18px;
   height: 18px;
@@ -240,6 +240,17 @@ label {
 }
 .switch input:checked + span::before {
   transform: translate(16px, -50%);
+}
+.switch input:disabled + span {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.55);
+  cursor: default;
+}
+.switch input:disabled + span::after {
+  background: rgba(0, 0, 0, 0.09);
+}
+.switch input:disabled + span::before {
+  opacity: 0.72;
 }
 .switch input:focus-visible + span {
   border-color: rgba(0, 113, 227, 0.65);
