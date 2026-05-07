@@ -49,6 +49,7 @@ npm install
 npm run export:data || true
 pm2 restart cezar-telegram || true
 pm2 restart cezar-whatsapp || true
+pm2 restart cezar-admin || true
 pm2 save
 EOF
 

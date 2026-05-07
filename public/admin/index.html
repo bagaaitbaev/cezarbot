@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CEZAR Admin</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section id="login" class="login hidden">
+        <div class="login-card">
+          <div class="brand-mark">C</div>
+          <h1>CEZAR Admin</h1>
+          <p>Единый календарь бронирований</p>
+          <form id="loginForm">
+            <input name="user" autocomplete="username" placeholder="Логин" value="admin" />
+            <input name="password" autocomplete="current-password" type="password" placeholder="Пароль" />
+            <button type="submit">Войти</button>
+          </form>
+          <div id="loginError" class="form-error"></div>
+        </div>
+      </section>
+
+      <section id="app" class="hidden">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">CEZAR PS5</p>
+            <h1>Бронирования</h1>
+          </div>
+          <div class="top-actions">
+            <button id="prevDay" class="icon-btn" title="Предыдущий день">‹</button>
+            <input id="dateInput" type="date" />
+            <button id="nextDay" class="icon-btn" title="Следующий день">›</button>
+            <button id="todayBtn" class="ghost">Сегодня</button>
+            <button id="logoutBtn" class="ghost">Выйти</button>
+          </div>
+        </header>
+
+        <section class="stats">
+          <div><span id="statActive">0</span><p>Активных броней</p></div>
+          <div><span id="statRevenue">0 ₸</span><p>Оборот</p></div>
+          <div><span id="statOnline">0</span><p>Онлайн</p></div>
+          <div><span id="statStaff">0</span><p>Сотрудники</p></div>
+        </section>
+
+        <section class="workspace">
+          <aside class="panel">
+            <div class="panel-head">
+              <h2 id="formTitle">Новая бронь</h2>
+              <button id="resetForm" class="ghost small">Очистить</button>
+            </div>
+            <form id="bookingForm" class="booking-form">
+              <input type="hidden" name="id" />
+              <label>Клиент<input name="clientName" placeholder="Имя клиента" /></label>
+              <label>Телефон<input name="phone" inputmode="tel" placeholder="77771234567" /></label>
+              <div class="grid-2">
+                <label>Зона
+                  <select name="zone">
+                    <option value="zal">ЗАЛ</option>
+                    <option value="cabinet">КАБИНКА</option>
+                    <option value="vip">VIP</option>
+                  </select>
+                </label>
+                <label>Время<input name="time" type="time" value="15:00" /></label>
+              </div>
+              <div class="grid-2">
+                <label>Длительность
+                  <select name="durationMinutes">
+                    <option value="60">1 час</option>
+                    <option value="180">3 часа</option>
+                    <option value="300">5 часов</option>
+                  </select>
+                </label>
+                <label class="switch"><input name="withCombo" type="checkbox" /><span>Комбо</span></label>
+              </div>
+              <label>Комментарий<textarea name="note" rows="3" placeholder="Например: звонок, предоплата, пожелания"></textarea></label>
+              <div id="formError" class="form-error"></div>
+              <button type="submit">Сохранить бронь</button>
+            </form>
+          </aside>
+
+          <section class="calendar">
+            <div class="calendar-head">
+              <h2 id="dayTitle">Сегодня</h2>
+              <div class="legend">
+                <span><i class="dot telegram"></i>Telegram</span>
+                <span><i class="dot whatsapp"></i>WhatsApp</span>
+                <span><i class="dot staff"></i>Сотрудник</span>
+              </div>
+            </div>
+            <div id="columns" class="columns"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

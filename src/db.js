@@ -28,8 +28,10 @@ function csvCell(v) {
   return s;
 }
 
-function sourceLabel(userId) {
-  return String(userId).includes('@') ? 'WhatsApp' : 'Telegram';
+export function sourceLabel(userId) {
+  const id = String(userId);
+  if (id.startsWith('admin:')) return 'Сотрудник';
+  return id.includes('@') ? 'WhatsApp' : 'Telegram';
 }
 
 function normalizePhone(phone) {
@@ -124,7 +126,7 @@ export function exportCsvFiles(db) {
   );
 }
 
-function isBookedStatus(status) {
+export function isBookedStatus(status) {
   // backward compatibility: older data used 'confirmed'
   return status === 'booked' || status === 'confirmed';
 }
@@ -182,7 +184,7 @@ export function getUser(db, userId) {
 
 export function insertBooking(
   db,
-  { userId, zone, startDatetimeIso, durationMinutes, withCombo, totalPrice, promoCode = null },
+  { userId, zone, startDatetimeIso, durationMinutes, withCombo, totalPrice, promoCode = null, source = null, note = '' },
 ) {
   const id = db.nextBookingId++;
   const booking = {
@@ -195,6 +197,8 @@ export function insertBooking(
     total_price: totalPrice,
     promo_code: promoCode || null,
     status: 'booked',
+    source: source || sourceLabel(userId),
+    note: note || '',
     reminder_sent: 0,
     review_2gis_eligible: 1,
     review_2gis_sent: 0,
@@ -203,6 +207,24 @@ export function insertBooking(
   db.bookings.push(booking);
   persist(db);
   return booking;
+}
+
+export function updateBooking(db, bookingId, patch) {
+  const booking = db.bookings.find((x) => Number(x.id) === Number(bookingId));
+  if (!booking) return { ok: false, reason: 'not_found' };
+  Object.assign(booking, patch, { updated_at: new Date().toISOString() });
+  persist(db);
+  return { ok: true, booking };
+}
+
+export function setBookingStatus(db, bookingId, status) {
+  const booking = db.bookings.find((x) => Number(x.id) === Number(bookingId));
+  if (!booking) return { ok: false, reason: 'not_found' };
+  booking.status = status;
+  booking.updated_at = new Date().toISOString();
+  if (status === 'cancelled') booking.cancelled_at = booking.updated_at;
+  persist(db);
+  return { ok: true, booking };
 }
 
 export function setUserPromoPending(db, userId, promoCode) {

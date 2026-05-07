@@ -81,6 +81,8 @@ web_modules/
 data/sessions.json
 data/whatsapp-sessions.json
 data/whatsapp-qr.png
+data/whatsapp-qr-vps.png
+data/clients_export.csv
 data/store.json
 .env.development.local
 .env.test.local
