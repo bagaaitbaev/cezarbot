@@ -151,13 +151,15 @@ export function openDb() {
   return db;
 }
 
-export function upsertUserPhone(db, userId, telegramName, phone) {
+export function upsertUserPhone(db, userId, telegramName, phone, options = {}) {
   const existing = db.users[String(userId)] ?? {};
+  const cleanPhone = phone == null ? '' : String(phone).trim();
   db.users[String(userId)] = {
     ...existing,
     user_id: userId,
     telegram_name: telegramName ?? existing.telegram_name ?? '',
-    phone: phone ?? existing.phone ?? '',
+    phone: cleanPhone || existing.phone || '',
+    phone_source: cleanPhone && options.phoneSource ? options.phoneSource : existing.phone_source,
     updated_at: new Date().toISOString(),
   };
   persist(db);

@@ -227,12 +227,29 @@ function userName(contact, message) {
 }
 
 function phoneFromContact(contact, userId) {
-  const raw =
-    contact?.number ||
-    contact?.id?.user ||
-    (String(userId).endsWith('@c.us') ? String(userId).split('@')[0] : '');
+  const id = contact?.id?._serialized || String(userId);
+  const server = contact?.id?.server || id.split('@')[1] || '';
+  if (server === 'lid' || String(id).endsWith('@lid') || String(userId).endsWith('@lid')) {
+    return '';
+  }
+  const raw = contact?.number || contact?.id?.user || (String(userId).endsWith('@c.us') ? String(userId).split('@')[0] : '');
   const digits = String(raw ?? '').replace(/\D/g, '');
   return digits || '';
+}
+
+function normalizeManualPhone(text) {
+  let digits = String(text ?? '').replace(/\D/g, '');
+  if (digits.length === 10 && digits.startsWith('7')) digits = `7${digits}`;
+  if (digits.length === 10 && digits.startsWith('0')) digits = `7${digits.slice(1)}`;
+  if (digits.length === 10) digits = `7${digits}`;
+  return digits.length >= 10 && digits.length <= 15 ? digits : '';
+}
+
+function hasUsablePhone(userId, user, contactPhone) {
+  if (contactPhone) return true;
+  if (!user?.phone) return false;
+  if (user.phone_source === 'manual') return true;
+  return !String(userId).endsWith('@lid');
 }
 
 function parseZone(text) {
@@ -496,9 +513,16 @@ async function handleMessage(client, db, message) {
     if (lower === '4' || lower.includes('рег')) {
       saveRegistrationAttempt(db, userId, name);
       const phone = phoneFromContact(contact, userId);
-      upsertUserPhone(db, userId, name, phone);
+      if (!hasUsablePhone(userId, savedUser, phone)) {
+        session.step = 'phone_registration';
+        persistSession(userId, session);
+        await client.sendMessage(userId, 'Напишите ваш номер телефона, например 77771234567.');
+        return;
+      }
+      upsertUserPhone(db, userId, name, phone, { phoneSource: phone ? 'whatsapp' : undefined });
       completeRegistration(db, userId);
-      await client.sendMessage(userId, `Регистрация завершена. Телефон: ${phone || 'не определен'}\n\n${mainMenu()}`);
+      const savedPhone = phone || getUser(db, userId)?.phone || '';
+      await client.sendMessage(userId, `Регистрация завершена. Телефон: ${savedPhone || 'не определен'}\n\n${mainMenu()}`);
       return;
     }
     if (lower === '5' || lower.includes('промо')) {
@@ -532,6 +556,26 @@ async function handleMessage(client, db, message) {
       return;
     }
     await client.sendMessage(userId, mainMenu());
+    return;
+  }
+
+  if (session.step === 'phone_registration' || session.step === 'phone_before_confirm') {
+    const phone = normalizeManualPhone(body);
+    if (!phone) {
+      await client.sendMessage(userId, 'Не получилось распознать номер. Напишите номер в формате 77771234567.');
+      return;
+    }
+    upsertUserPhone(db, userId, name, phone, { phoneSource: 'manual' });
+    completeRegistration(db, userId);
+    if (session.step === 'phone_registration') {
+      resetFlow(session);
+      persistSession(userId, session);
+      await client.sendMessage(userId, `Регистрация завершена. Телефон: ${phone}\n\n${mainMenu()}`);
+      return;
+    }
+    session.step = 'confirm';
+    persistSession(userId, session);
+    await client.sendMessage(userId, `Телефон сохранен: ${phone}\n\n${buildSummaryText(session.draft)}\n\nПодтвердить? 1. Да  2. Нет`);
     return;
   }
 
@@ -651,7 +695,15 @@ async function handleMessage(client, db, message) {
       await client.sendMessage(userId, `На это время мест нет.${hint}\n\n${timeMenu()}`);
       return;
     }
-    upsertUserPhone(db, userId, name, phoneFromContact(contact, userId));
+    const contactPhone = phoneFromContact(contact, userId);
+    const currentUser = getUser(db, userId);
+    if (!hasUsablePhone(userId, currentUser, contactPhone)) {
+      session.step = 'phone_before_confirm';
+      persistSession(userId, session);
+      await client.sendMessage(userId, 'Перед подтверждением напишите ваш номер телефона, например 77771234567.');
+      return;
+    }
+    upsertUserPhone(db, userId, name, contactPhone, { phoneSource: contactPhone ? 'whatsapp' : undefined });
     const user = getUser(db, userId);
     let promoToApply = null;
     if (user?.promo_pending) {
