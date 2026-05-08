@@ -28,6 +28,8 @@ const dateInput = $('#dateInput');
 const columns = $('#columns');
 const soundToggle = $('#soundToggle');
 const liveStatus = $('#liveStatus');
+const staffButton = $('#staffButton');
+const staffModal = $('#staffModal');
 
 const SEATS_BY_ZONE = {
   zal: [1, 2, 3, 4, 5],
@@ -85,7 +87,7 @@ function showApp() {
 function renderCurrentUser() {
   const label = state.user?.name || state.user?.username || 'Сотрудник';
   $('#currentUser').textContent = label;
-  $('#staffPanel').classList.toggle('hidden', state.user?.role !== 'admin');
+  staffButton.classList.toggle('hidden', state.user?.role !== 'admin');
 }
 
 function updateLiveStatus(text = 'Онлайн') {
@@ -339,6 +341,18 @@ function editStaff(staff) {
   $('#staffError').textContent = '';
 }
 
+function openStaffModal() {
+  staffModal.classList.remove('hidden');
+  staffModal.setAttribute('aria-hidden', 'false');
+  loadStaff().catch((e) => ($('#staffError').textContent = e.message));
+}
+
+function closeStaffModal() {
+  staffModal.classList.add('hidden');
+  staffModal.setAttribute('aria-hidden', 'true');
+  $('#staffError').textContent = '';
+}
+
 async function removeStaff(username) {
   if (!confirm(`Удалить сотрудника ${username}?`)) return;
   await api(`/api/staff/${encodeURIComponent(username)}`, { method: 'DELETE' });
@@ -454,7 +468,16 @@ dateInput.addEventListener('change', () => {
 $('#logoutBtn').addEventListener('click', async () => {
   await api('/api/logout', { method: 'POST' }).catch(() => {});
   state.user = null;
+  closeStaffModal();
   showLogin();
+});
+staffButton.addEventListener('click', openStaffModal);
+$('#closeStaffModal').addEventListener('click', closeStaffModal);
+staffModal.addEventListener('click', (event) => {
+  if (event.target?.dataset?.close === 'staff') closeStaffModal();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !staffModal.classList.contains('hidden')) closeStaffModal();
 });
 soundToggle.addEventListener('click', async () => {
   try {

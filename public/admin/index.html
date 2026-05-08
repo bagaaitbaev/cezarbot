@@ -39,6 +39,7 @@
             <button id="soundToggle" class="ghost sound-toggle" type="button">Звук выкл</button>
             <span id="liveStatus" class="live-pill">Онлайн</span>
             <span id="currentUser" class="user-pill">Сотрудник</span>
+            <button id="staffButton" class="ghost hidden" type="button">Сотрудники</button>
             <button id="logoutBtn" class="ghost">Выйти</button>
           </div>
         </header>
@@ -89,24 +90,6 @@
               <div id="formError" class="form-error"></div>
               <button type="submit">Сохранить бронь</button>
             </form>
-
-            <section id="staffPanel" class="staff-panel hidden">
-              <div class="panel-head compact-head">
-                <h2>Сотрудники</h2>
-              </div>
-              <form id="staffForm" class="booking-form">
-                <input name="username" placeholder="Логин" autocomplete="off" />
-                <input name="name" placeholder="Имя сотрудника" autocomplete="off" />
-                <input name="password" type="password" placeholder="Новый пароль" autocomplete="new-password" />
-                <select name="role">
-                  <option value="staff">Сотрудник</option>
-                  <option value="admin">Админ</option>
-                </select>
-                <div id="staffError" class="form-error"></div>
-                <button type="submit">Сохранить сотрудника</button>
-              </form>
-              <div id="staffList" class="staff-list"></div>
-            </section>
           </aside>
 
           <section class="calendar">
@@ -120,6 +103,31 @@
             </div>
             <div id="columns" class="columns"></div>
           </section>
+        </section>
+
+        <section id="staffModal" class="modal hidden" aria-hidden="true">
+          <div class="modal-backdrop" data-close="staff"></div>
+          <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="staffTitle">
+            <div class="modal-head">
+              <div>
+                <p class="eyebrow">Доступ</p>
+                <h2 id="staffTitle">Сотрудники</h2>
+              </div>
+              <button id="closeStaffModal" class="icon-btn" type="button" title="Закрыть">×</button>
+            </div>
+            <form id="staffForm" class="staff-form">
+              <input name="username" placeholder="Логин" autocomplete="off" />
+              <input name="name" placeholder="Имя сотрудника" autocomplete="off" />
+              <input name="password" type="password" placeholder="Новый пароль" autocomplete="new-password" />
+              <select name="role">
+                <option value="staff">Сотрудник</option>
+                <option value="admin">Админ</option>
+              </select>
+              <div id="staffError" class="form-error"></div>
+              <button type="submit">Сохранить сотрудника</button>
+            </form>
+            <div id="staffList" class="staff-list"></div>
+          </div>
         </section>
       </section>
     </main>
