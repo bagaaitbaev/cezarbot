@@ -118,21 +118,42 @@ function disableSound() {
 
 function playNotificationSound() {
   if (!state.soundEnabled || !state.audioContext) return;
+  playSiuuVoice();
+  playSiuuTone();
+}
+
+function playSiuuVoice() {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance('Siuuu!');
+  utterance.lang = 'en-US';
+  utterance.rate = 0.82;
+  utterance.pitch = 1.18;
+  utterance.volume = 0.85;
+  window.speechSynthesis.speak(utterance);
+}
+
+function playSiuuTone() {
   const ctx = state.audioContext;
   const now = ctx.currentTime;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+  gain.gain.exponentialRampToValueAtTime(0.08, now + 0.04);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
   gain.connect(ctx.destination);
 
-  for (const [offset, frequency] of [[0, 880], [0.16, 1175]]) {
+  for (const [offset, frequency, duration] of [
+    [0, 392, 0.46],
+    [0.12, 523.25, 0.5],
+    [0.28, 659.25, 0.46],
+  ]) {
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(frequency, now + offset);
+    osc.frequency.exponentialRampToValueAtTime(frequency * 1.18, now + offset + duration);
     osc.connect(gain);
     osc.start(now + offset);
-    osc.stop(now + offset + 0.18);
+    osc.stop(now + offset + duration);
   }
 }
 
