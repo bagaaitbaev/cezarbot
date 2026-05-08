@@ -507,6 +507,7 @@ function serveStatic(req, res, pathname) {
     '.css': 'text/css; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
     '.mp3': 'audio/mpeg',
+    '.png': 'image/png',
   };
   res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
   fs.createReadStream(filePath).pipe(res);

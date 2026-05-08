@@ -29,6 +29,7 @@
   --warning-soft: rgba(255, 149, 0, 0.16);
   --warning-text: #9a5200;
   --warning-border: #bf6900;
+  --brand-gold: #dcc76d;
   --cancelled-card: rgba(255, 255, 255, 0.62);
   --modal-backdrop: rgba(245, 245, 247, 0.72);
   --shadow: 0 18px 60px rgba(22, 22, 26, 0.08);
@@ -64,6 +65,7 @@
   --warning-soft: rgba(255, 159, 10, 0.17);
   --warning-text: #ffd18a;
   --warning-border: #ffb340;
+  --brand-gold: #e1ca70;
   --cancelled-card: rgba(255, 255, 255, 0.045);
   --modal-backdrop: rgba(17, 17, 20, 0.76);
   --shadow: 0 22px 70px rgba(0, 0, 0, 0.32);
@@ -125,10 +127,25 @@ button:disabled { opacity: 0.55; cursor: default; }
   display: grid;
   place-items: center;
   border-radius: 14px;
-  background: #111;
-  color: white;
-  font-size: 24px;
-  font-weight: 700;
+  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.22), transparent 34%), #141416;
+  box-shadow: inset 0 0 0 1px rgba(220, 199, 109, 0.28), 0 12px 28px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.brand-mark img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  display: block;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.small-brand {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
 }
 .login h1, .topbar h1, .panel h2, .calendar h2 {
   margin: 12px 0 4px;
@@ -203,6 +220,7 @@ select:focus {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
+  color: var(--brand-gold);
 }
 .topbar h1 {
   font-size: 34px;
