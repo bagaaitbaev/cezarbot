@@ -32,15 +32,19 @@
             <h1>Бронирования</h1>
           </div>
           <div class="top-actions">
-            <button id="prevDay" class="icon-btn" title="Предыдущий день">‹</button>
-            <input id="dateInput" type="date" />
-            <button id="nextDay" class="icon-btn" title="Следующий день">›</button>
-            <button id="todayBtn" class="ghost">Сегодня</button>
-            <button id="soundToggle" class="ghost sound-toggle" type="button">Звук выкл</button>
-            <span id="liveStatus" class="live-pill">Онлайн</span>
-            <span id="currentUser" class="user-pill">Сотрудник</span>
-            <button id="staffButton" class="ghost hidden" type="button">Сотрудники</button>
-            <button id="logoutBtn" class="ghost">Выйти</button>
+            <div class="date-controls">
+              <button id="prevDay" class="icon-btn" title="Предыдущий день">‹</button>
+              <input id="dateInput" type="date" />
+              <button id="nextDay" class="icon-btn" title="Следующий день">›</button>
+              <button id="todayBtn" class="ghost">Сегодня</button>
+            </div>
+            <div class="session-actions">
+              <button id="soundToggle" class="ghost sound-toggle" type="button">Звук выкл</button>
+              <span id="liveStatus" class="live-pill">Онлайн</span>
+              <span id="currentUser" class="user-pill">Сотрудник</span>
+              <button id="staffButton" class="ghost hidden" type="button">Сотрудники</button>
+              <button id="logoutBtn" class="ghost subtle-action">Выйти</button>
+            </div>
           </div>
         </header>
 
