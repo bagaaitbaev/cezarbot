@@ -382,7 +382,7 @@ function bookingCard(booking) {
         ${note ? `<div class="booking-client">${note}</div>` : ''}
         <div class="booking-actions">
           ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Клиент пришел</button>' : ''}
-          ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть сессию' : 'Открытая сессия'}</button>` : ''}
+          ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Открытая сессия'}</button>` : ''}
           <button class="ghost small" data-action="edit">Изменить</button>
           ${isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
         </div>
