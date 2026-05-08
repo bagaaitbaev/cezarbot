@@ -19,6 +19,7 @@ const state = {
   notificationAudio: null,
   pollTimer: null,
   openSessionReminderAt: 0,
+  expandedBookingIds: new Set(),
 };
 
 const login = $('#login');
@@ -279,10 +280,14 @@ function sourceClass(source) {
 function bookingCard(booking) {
   const card = document.createElement('article');
   card.className = 'booking-card';
+  const bookingId = Number(booking.id);
+  const isExpanded = state.expandedBookingIds.has(bookingId);
   card.dataset.source = booking.source;
   card.dataset.status = booking.status;
   card.dataset.arrived = booking.arrivedAt ? 'true' : 'false';
   card.dataset.openSession = booking.openSessionStartedAt && !booking.openSessionClosedAt ? 'true' : 'false';
+  card.dataset.expanded = isExpanded ? 'true' : 'false';
+  card.setAttribute('aria-expanded', String(isExpanded));
   const source = escapeHtml(booking.source);
   const clientName = escapeHtml(booking.clientName || 'Клиент');
   const phone = escapeHtml(booking.phone);
@@ -307,22 +312,31 @@ function bookingCard(booking) {
     return '';
   })();
   card.innerHTML = `
-    <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
-    <div class="booking-primary">${clientName}</div>
-    <div class="booking-phone">${phone || 'Телефон не указан'}</div>
-    <div class="booking-badges">
-      <span>${zoneLabel}</span>
-      <span>${seat}</span>
-      ${arrivedBadge}
-      ${sessionBadge}
+    <div class="booking-summary">
+      <div>
+        <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
+        <div class="booking-primary">${clientName}</div>
+      </div>
+      <span class="booking-chevron" aria-hidden="true">⌄</span>
     </div>
-    <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
-    ${note ? `<div class="booking-client">${note}</div>` : ''}
-    <div class="booking-actions">
-      ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Клиент пришел</button>' : ''}
-      ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть сессию' : 'Открытая сессия'}</button>` : ''}
-      <button class="ghost small" data-action="edit">Изменить</button>
-      ${isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
+    <div class="booking-details">
+      <div class="booking-details-inner">
+        <div class="booking-phone">${phone || 'Телефон не указан'}</div>
+        <div class="booking-badges">
+          <span>${zoneLabel}</span>
+          <span>${seat}</span>
+          ${arrivedBadge}
+          ${sessionBadge}
+        </div>
+        <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
+        ${note ? `<div class="booking-client">${note}</div>` : ''}
+        <div class="booking-actions">
+          ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Клиент пришел</button>' : ''}
+          ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть сессию' : 'Открытая сессия'}</button>` : ''}
+          <button class="ghost small" data-action="edit">Изменить</button>
+          ${isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
+        </div>
+      </div>
     </div>
   `;
   card.addEventListener('click', (event) => {
@@ -342,12 +356,25 @@ function bookingCard(booking) {
       closeSession(booking.id).catch((e) => ($('#formError').textContent = e.message));
       return;
     }
+    if (action === 'edit') {
+      event.stopPropagation();
+      editBooking(booking);
+      return;
+    }
     if (action === 'cancel') {
       event.stopPropagation();
       cancelBooking(booking.id).catch((e) => ($('#formError').textContent = e.message));
       return;
     }
-    editBooking(booking);
+    if (state.expandedBookingIds.has(bookingId)) {
+      state.expandedBookingIds.delete(bookingId);
+      card.dataset.expanded = 'false';
+      card.setAttribute('aria-expanded', 'false');
+    } else {
+      state.expandedBookingIds.add(bookingId);
+      card.dataset.expanded = 'true';
+      card.setAttribute('aria-expanded', 'true');
+    }
   });
   return card;
 }

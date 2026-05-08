@@ -382,9 +382,15 @@ label {
   border-left: 4px solid var(--staff);
   border-radius: 12px;
   background: var(--surface-solid);
-  padding: 12px;
+  padding: 0;
   margin-bottom: 10px;
   cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+.booking-card:hover {
+  box-shadow: 0 10px 28px rgba(22, 22, 26, 0.07);
+  transform: translateY(-1px);
 }
 .booking-card[data-source="Telegram"] { border-left-color: var(--telegram); }
 .booking-card[data-source="WhatsApp"] { border-left-color: var(--whatsapp); }
@@ -403,17 +409,60 @@ label {
   border-color: rgba(215, 0, 21, 0.22);
   border-left-color: var(--danger);
 }
+.booking-summary {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px 12px;
+}
 .booking-card strong {
   display: block;
   font-size: 15px;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 .booking-primary {
   color: var(--text);
   font-size: 16px;
   font-weight: 700;
   line-height: 1.25;
-  margin-bottom: 3px;
+}
+.booking-chevron {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 0.22s ease, background 0.18s ease, color 0.18s ease;
+}
+.booking-card[data-expanded="true"] .booking-chevron {
+  transform: rotate(180deg);
+  background: rgba(0, 113, 227, 0.1);
+  color: #075eb8;
+}
+.booking-details {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.28s ease, opacity 0.2s ease;
+}
+.booking-details-inner {
+  overflow: hidden;
+  padding: 0 14px;
+}
+.booking-card[data-expanded="true"] .booking-details {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.booking-card[data-expanded="true"] .booking-details-inner {
+  padding-bottom: 13px;
 }
 .booking-phone {
   color: var(--text);
