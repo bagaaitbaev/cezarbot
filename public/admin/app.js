@@ -84,20 +84,28 @@ function durationLabel(minutes) {
 function normalizePhoneDigits(value) {
   let digits = String(value || '').replace(/\D/g, '');
   if (digits.length === 10) digits = `7${digits}`;
-  if (digits.startsWith('8')) digits = `7${digits.slice(1)}`;
+  if (digits.length === 11 && digits.startsWith('8')) digits = `7${digits.slice(1)}`;
   return digits.slice(0, 11);
 }
 
 function formatPhone(value) {
   const digits = normalizePhoneDigits(value);
   if (!digits) return '';
-  if (!digits.startsWith('7')) return digits;
+  if (!digits.startsWith('7') || digits.length < 11) return digits;
   const parts = ['+7'];
   const chunks = [digits.slice(1, 4), digits.slice(4, 7), digits.slice(7, 9), digits.slice(9, 11)];
   for (const chunk of chunks) {
     if (chunk) parts.push(chunk);
   }
   return parts.join(' ');
+}
+
+function cleanPhoneInput(value) {
+  const raw = String(value || '');
+  const hasLeadingPlus = raw.trimStart().startsWith('+');
+  const digits = raw.replace(/\D/g, '').slice(0, 11);
+  if (!digits) return hasLeadingPlus ? '+' : '';
+  return `${hasLeadingPlus ? '+' : ''}${digits}`;
 }
 
 async function api(path, options = {}) {
@@ -660,7 +668,7 @@ bookingForm.addEventListener('submit', async (event) => {
   }
 });
 bookingForm.elements.phone.addEventListener('input', (event) => {
-  event.target.value = formatPhone(event.target.value);
+  event.target.value = cleanPhoneInput(event.target.value);
 });
 bookingForm.elements.phone.addEventListener('blur', (event) => {
   event.target.value = formatPhone(event.target.value);
