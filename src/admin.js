@@ -440,7 +440,12 @@ function serveStatic(req, res, pathname) {
   }
   const filePath = fs.existsSync(fullPath) && fs.statSync(fullPath).isFile() ? fullPath : path.join(publicDir, 'index.html');
   const ext = path.extname(filePath);
-  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+  const types = {
+    '.html': 'text/html; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.mp3': 'audio/mpeg',
+  };
   res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
   fs.createReadStream(filePath).pipe(res);
 }

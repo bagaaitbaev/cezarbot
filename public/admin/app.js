@@ -16,6 +16,7 @@ const state = {
   hasDashboardSnapshot: false,
   soundEnabled: false,
   audioContext: null,
+  notificationAudio: null,
   pollTimer: null,
 };
 
@@ -30,6 +31,7 @@ const soundToggle = $('#soundToggle');
 const liveStatus = $('#liveStatus');
 const staffButton = $('#staffButton');
 const staffModal = $('#staffModal');
+const NOTIFICATION_SOUND_URL = '/sounds/siuuu.mp3';
 
 const SEATS_BY_ZONE = {
   zal: [1, 2, 3, 4, 5],
@@ -101,14 +103,16 @@ function updateSoundButton() {
 
 async function enableSound() {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  if (!AudioCtx) {
-    throw new Error('Браузер не поддерживает звуковые уведомления.');
+  if (!state.notificationAudio) {
+    state.notificationAudio = new Audio(NOTIFICATION_SOUND_URL);
+    state.notificationAudio.preload = 'auto';
+    state.notificationAudio.volume = 0.9;
   }
-  if (!state.audioContext) state.audioContext = new AudioCtx();
-  if (state.audioContext.state === 'suspended') await state.audioContext.resume();
+  if (AudioCtx && !state.audioContext) state.audioContext = new AudioCtx();
+  if (state.audioContext?.state === 'suspended') await state.audioContext.resume();
   state.soundEnabled = true;
   updateSoundButton();
-  playNotificationSound();
+  await playNotificationSound();
 }
 
 function disableSound() {
@@ -116,24 +120,24 @@ function disableSound() {
   updateSoundButton();
 }
 
-function playNotificationSound() {
-  if (!state.soundEnabled || !state.audioContext) return;
-  playSiuuVoice();
-  playSiuuTone();
+async function playNotificationSound() {
+  if (!state.soundEnabled) return;
+  try {
+    if (!state.notificationAudio) {
+      state.notificationAudio = new Audio(NOTIFICATION_SOUND_URL);
+      state.notificationAudio.preload = 'auto';
+      state.notificationAudio.volume = 0.9;
+    }
+    state.notificationAudio.pause();
+    state.notificationAudio.currentTime = 0;
+    await state.notificationAudio.play();
+  } catch {
+    playFallbackTone();
+  }
 }
 
-function playSiuuVoice() {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance('Siuuu!');
-  utterance.lang = 'en-US';
-  utterance.rate = 0.82;
-  utterance.pitch = 1.18;
-  utterance.volume = 0.85;
-  window.speechSynthesis.speak(utterance);
-}
-
-function playSiuuTone() {
+function playFallbackTone() {
+  if (!state.audioContext) return;
   const ctx = state.audioContext;
   const now = ctx.currentTime;
   const gain = ctx.createGain();
