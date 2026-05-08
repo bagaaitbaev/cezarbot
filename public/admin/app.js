@@ -12,6 +12,11 @@ const state = {
   date: todayLocal(),
   dashboard: null,
   user: null,
+  knownBookingIds: new Set(),
+  hasDashboardSnapshot: false,
+  soundEnabled: false,
+  audioContext: null,
+  pollTimer: null,
 };
 
 const login = $('#login');
@@ -21,6 +26,8 @@ const bookingForm = $('#bookingForm');
 const staffForm = $('#staffForm');
 const dateInput = $('#dateInput');
 const columns = $('#columns');
+const soundToggle = $('#soundToggle');
+const liveStatus = $('#liveStatus');
 
 const SEATS_BY_ZONE = {
   zal: [1, 2, 3, 4, 5],
@@ -64,18 +71,79 @@ async function api(path, options = {}) {
 function showLogin() {
   login.classList.remove('hidden');
   app.classList.add('hidden');
+  stopAutoRefresh();
 }
 
 function showApp() {
   login.classList.add('hidden');
   app.classList.remove('hidden');
   renderCurrentUser();
+  updateSoundButton();
+  startAutoRefresh();
 }
 
 function renderCurrentUser() {
   const label = state.user?.name || state.user?.username || 'Сотрудник';
   $('#currentUser').textContent = label;
   $('#staffPanel').classList.toggle('hidden', state.user?.role !== 'admin');
+}
+
+function updateLiveStatus(text = 'Онлайн') {
+  liveStatus.textContent = text;
+}
+
+function updateSoundButton() {
+  soundToggle.textContent = state.soundEnabled ? 'Звук вкл' : 'Звук выкл';
+  soundToggle.classList.toggle('is-on', state.soundEnabled);
+}
+
+async function enableSound() {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) {
+    throw new Error('Браузер не поддерживает звуковые уведомления.');
+  }
+  if (!state.audioContext) state.audioContext = new AudioCtx();
+  if (state.audioContext.state === 'suspended') await state.audioContext.resume();
+  state.soundEnabled = true;
+  updateSoundButton();
+  playNotificationSound();
+}
+
+function disableSound() {
+  state.soundEnabled = false;
+  updateSoundButton();
+}
+
+function playNotificationSound() {
+  if (!state.soundEnabled || !state.audioContext) return;
+  const ctx = state.audioContext;
+  const now = ctx.currentTime;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+  gain.connect(ctx.destination);
+
+  for (const [offset, frequency] of [[0, 880], [0.16, 1175]]) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(frequency, now + offset);
+    osc.connect(gain);
+    osc.start(now + offset);
+    osc.stop(now + offset + 0.18);
+  }
+}
+
+function notifyNewBookings(bookings) {
+  if (!bookings.length) return;
+  playNotificationSound();
+  updateLiveStatus(`Новая бронь #${bookings[bookings.length - 1].id}`);
+  setTimeout(() => updateLiveStatus('Онлайн'), 5000);
+}
+
+function resetBookingSnapshot() {
+  state.knownBookingIds = new Set();
+  state.hasDashboardSnapshot = false;
 }
 
 function formPayload() {
@@ -189,8 +257,16 @@ function bookingCard(booking) {
   return card;
 }
 
-function renderDashboard(data) {
+function renderDashboard(data, { notify = false } = {}) {
+  const activeIds = new Set(data.bookings.filter((b) => b.status !== 'cancelled').map((b) => Number(b.id)));
+  const newBookings =
+    notify && state.hasDashboardSnapshot
+      ? data.bookings.filter((b) => b.status !== 'cancelled' && !state.knownBookingIds.has(Number(b.id)))
+      : [];
+
   state.dashboard = data;
+  state.knownBookingIds = activeIds;
+  state.hasDashboardSnapshot = true;
   showApp();
   dateInput.value = data.date;
   $('#dayTitle').textContent = dayLabel(data.date);
@@ -220,16 +296,39 @@ function renderDashboard(data) {
     rows.forEach((booking) => column.append(bookingCard(booking)));
     columns.append(column);
   }
+
+  notifyNewBookings(newBookings);
 }
 
-async function loadDashboard() {
+async function loadDashboard({ notify = false, refreshStaff = false } = {}) {
   if (!state.user) {
     const me = await api('/api/me');
     state.user = me.user;
   }
   const data = await api(`/api/dashboard?date=${state.date}`);
-  renderDashboard(data);
-  if (state.user?.role === 'admin') loadStaff().catch((e) => ($('#staffError').textContent = e.message));
+  renderDashboard(data, { notify });
+  updateLiveStatus('Онлайн');
+  if (refreshStaff && state.user?.role === 'admin') loadStaff().catch((e) => ($('#staffError').textContent = e.message));
+}
+
+async function pollDashboard() {
+  if (!state.user || app.classList.contains('hidden')) return;
+  try {
+    await loadDashboard({ notify: true, refreshStaff: false });
+  } catch (e) {
+    updateLiveStatus('Нет связи');
+  }
+}
+
+function startAutoRefresh() {
+  if (state.pollTimer) return;
+  state.pollTimer = setInterval(pollDashboard, 5000);
+}
+
+function stopAutoRefresh() {
+  if (!state.pollTimer) return;
+  clearInterval(state.pollTimer);
+  state.pollTimer = null;
 }
 
 function editStaff(staff) {
@@ -277,8 +376,9 @@ function shiftDay(delta) {
   const d = new Date(`${state.date}T12:00:00`);
   d.setDate(d.getDate() + delta);
   state.date = d.toISOString().slice(0, 10);
+  resetBookingSnapshot();
   resetForm();
-  loadDashboard().catch((e) => ($('#formError').textContent = e.message));
+  loadDashboard({ refreshStaff: true }).catch((e) => ($('#formError').textContent = e.message));
 }
 
 loginForm.addEventListener('submit', async (event) => {
@@ -292,7 +392,7 @@ loginForm.addEventListener('submit', async (event) => {
     }).then((data) => {
       state.user = data.user;
     });
-    await loadDashboard();
+    await loadDashboard({ refreshStaff: true });
   } catch (e) {
     $('#loginError').textContent = e.message;
   }
@@ -309,7 +409,7 @@ bookingForm.addEventListener('submit', async (event) => {
       await api('/api/bookings', { method: 'POST', body: JSON.stringify(payload) });
     }
     resetForm();
-    await loadDashboard();
+    await loadDashboard({ refreshStaff: true });
   } catch (e) {
     $('#formError').textContent = e.message;
   }
@@ -341,20 +441,34 @@ $('#prevDay').addEventListener('click', () => shiftDay(-1));
 $('#nextDay').addEventListener('click', () => shiftDay(1));
 $('#todayBtn').addEventListener('click', () => {
   state.date = todayLocal();
+  resetBookingSnapshot();
   resetForm();
-  loadDashboard().catch((e) => ($('#formError').textContent = e.message));
+  loadDashboard({ refreshStaff: true }).catch((e) => ($('#formError').textContent = e.message));
 });
 dateInput.addEventListener('change', () => {
   state.date = dateInput.value;
+  resetBookingSnapshot();
   resetForm();
-  loadDashboard().catch((e) => ($('#formError').textContent = e.message));
+  loadDashboard({ refreshStaff: true }).catch((e) => ($('#formError').textContent = e.message));
 });
 $('#logoutBtn').addEventListener('click', async () => {
   await api('/api/logout', { method: 'POST' }).catch(() => {});
   state.user = null;
   showLogin();
 });
+soundToggle.addEventListener('click', async () => {
+  try {
+    if (state.soundEnabled) disableSound();
+    else await enableSound();
+  } catch (e) {
+    $('#formError').textContent = e.message;
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) pollDashboard();
+});
 
 syncSeatOptions();
 syncComboAvailability();
-loadDashboard().catch(() => showLogin());
+updateSoundButton();
+loadDashboard({ refreshStaff: true }).catch(() => showLogin());

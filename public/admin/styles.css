@@ -140,6 +140,21 @@ input:focus, select:focus, textarea:focus {
   font-size: 14px;
   font-weight: 700;
 }
+.live-pill {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  background: rgba(37, 211, 102, 0.12);
+  color: #0c7d38;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.sound-toggle.is-on {
+  background: rgba(37, 211, 102, 0.16);
+  color: #0c7d38;
+}
 .stats {
   max-width: 1440px;
   margin: 0 auto 18px;
