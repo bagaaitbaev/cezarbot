@@ -317,7 +317,7 @@ function bookingCard(booking) {
         <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
         <div class="booking-primary">${clientName}</div>
       </div>
-      <span class="booking-chevron" aria-hidden="true">⌄</span>
+      <span class="booking-chevron" aria-hidden="true"></span>
     </div>
     <div class="booking-details">
       <div class="booking-details-inner">
