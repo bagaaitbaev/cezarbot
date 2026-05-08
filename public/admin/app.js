@@ -20,6 +20,7 @@ const state = {
   pollTimer: null,
   openSessionReminderAt: 0,
   expandedBookingIds: new Set(),
+  theme: localStorage.getItem('cezarTheme') || 'light',
 };
 
 const login = $('#login');
@@ -30,6 +31,7 @@ const staffForm = $('#staffForm');
 const dateInput = $('#dateInput');
 const columns = $('#columns');
 const cancelledBookings = $('#cancelledBookings');
+const themeToggle = $('#themeToggle');
 const soundToggle = $('#soundToggle');
 const liveStatus = $('#liveStatus');
 const staffButton = $('#staffButton');
@@ -115,6 +117,17 @@ function updateLiveStatus(text = 'Онлайн') {
 function updateSoundButton() {
   soundToggle.textContent = state.soundEnabled ? 'Звук вкл' : 'Звук выкл';
   soundToggle.classList.toggle('is-on', state.soundEnabled);
+}
+
+function applyTheme() {
+  document.documentElement.dataset.theme = state.theme;
+  themeToggle.textContent = state.theme === 'dark' ? 'Светлая' : 'Темная';
+}
+
+function toggleTheme() {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('cezarTheme', state.theme);
+  applyTheme();
 }
 
 async function enableSound() {
@@ -641,10 +654,12 @@ soundToggle.addEventListener('click', async () => {
     $('#formError').textContent = e.message;
   }
 });
+themeToggle.addEventListener('click', toggleTheme);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) pollDashboard();
 });
 
+applyTheme();
 syncSeatOptions();
 syncComboAvailability();
 updateSoundButton();
