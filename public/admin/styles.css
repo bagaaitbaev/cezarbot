@@ -195,6 +195,16 @@ select {
 select:hover {
   background-color: var(--field-hover);
 }
+select option,
+select optgroup {
+  background: var(--surface-solid);
+  color: var(--text);
+}
+:root[data-theme="dark"] select option,
+:root[data-theme="dark"] select optgroup {
+  background: #1d1d21;
+  color: #f4f4f6;
+}
 textarea { padding: 11px 12px; resize: vertical; }
 input:focus, select:focus, textarea:focus {
   border-color: rgba(0, 113, 227, 0.65);
