@@ -389,6 +389,11 @@ label {
 .booking-card[data-source="Telegram"] { border-left-color: var(--telegram); }
 .booking-card[data-source="WhatsApp"] { border-left-color: var(--whatsapp); }
 .booking-card[data-status="cancelled"] { opacity: 0.42; }
+.booking-card[data-arrived="true"] {
+  border-color: rgba(12, 125, 56, 0.22);
+  border-left-color: #0c7d38;
+  background: linear-gradient(180deg, rgba(37, 211, 102, 0.08), #fff 46%);
+}
 .booking-card strong {
   display: block;
   font-size: 15px;
@@ -424,6 +429,10 @@ label {
   font-size: 13px;
   font-weight: 700;
 }
+.booking-badges .arrival-badge {
+  background: rgba(37, 211, 102, 0.14);
+  color: #0c7d38;
+}
 .booking-meta, .booking-client {
   color: var(--muted);
   font-size: 13px;
@@ -433,6 +442,11 @@ label {
   margin-top: 10px;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.arrival {
+  background: rgba(37, 211, 102, 0.14);
+  color: #0c7d38;
 }
 .danger {
   background: rgba(215, 0, 21, 0.08);

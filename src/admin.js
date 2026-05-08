@@ -231,6 +231,9 @@ function bookingView(booking) {
     updatedByName: booking.updated_by_name || '',
     cancelledBy: booking.cancelled_by || '',
     cancelledByName: booking.cancelled_by_name || '',
+    arrivedAt: booking.arrived_at || '',
+    arrivedBy: booking.arrived_by || '',
+    arrivedByName: booking.arrived_by_name || '',
     clientName: user.telegram_name || 'Клиент',
     phone: user.phone || '',
     userId: booking.user_id,
@@ -334,6 +337,14 @@ function updateExistingBooking(id, payload, actor) {
   return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось обновить бронь.' };
 }
 
+function confirmBookingArrival(id, actor) {
+  refreshDb(db);
+  const existing = db.bookings.find((b) => Number(b.id) === Number(id));
+  if (!existing || !isBookedStatus(existing.status)) return { ok: false, error: 'Бронь не найдена.' };
+  const result = updateBooking(db, id, actorFields(actor, 'arrived'));
+  return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось подтвердить приход клиента.' };
+}
+
 function dashboard(date) {
   const bookings = listBookings(date);
   const active = bookings.filter((b) => isBookedStatus(b.status));
@@ -421,6 +432,8 @@ async function handleApi(req, res, pathname) {
   }
   if (pathname === '/api/dashboard') return json(res, 200, dashboard(url.searchParams.get('date') || dayjs().tz(TZ).format('YYYY-MM-DD')));
   if (pathname === '/api/bookings' && req.method === 'POST') return json(res, 200, createManualBooking(await readBody(req), actor));
+  const bookingArrivalMatch = pathname.match(/^\/api\/bookings\/(\d+)\/arrival$/);
+  if (bookingArrivalMatch && req.method === 'POST') return json(res, 200, confirmBookingArrival(bookingArrivalMatch[1], actor));
   const bookingMatch = pathname.match(/^\/api\/bookings\/(\d+)$/);
   if (bookingMatch && req.method === 'PATCH') return json(res, 200, updateExistingBooking(bookingMatch[1], await readBody(req), actor));
   if (bookingMatch && req.method === 'DELETE') {

@@ -240,6 +240,11 @@ async function cancelBooking(id) {
   await loadDashboard();
 }
 
+async function confirmArrival(id) {
+  await api(`/api/bookings/${id}/arrival`, { method: 'POST' });
+  await loadDashboard();
+}
+
 function sourceClass(source) {
   if (source === 'Telegram') return 'telegram';
   if (source === 'WhatsApp') return 'whatsapp';
@@ -251,12 +256,16 @@ function bookingCard(booking) {
   card.className = 'booking-card';
   card.dataset.source = booking.source;
   card.dataset.status = booking.status;
+  card.dataset.arrived = booking.arrivedAt ? 'true' : 'false';
   const source = escapeHtml(booking.source);
   const clientName = escapeHtml(booking.clientName || 'Клиент');
   const phone = escapeHtml(booking.phone);
   const note = escapeHtml(booking.note);
   const zoneLabel = escapeHtml(booking.zoneLabel || booking.zone);
   const seat = booking.seat ? escapeHtml(`Место ${booking.seat}`) : 'Место не выбрано';
+  const arrivedBy = escapeHtml(booking.arrivedByName || booking.arrivedBy || 'сотрудник');
+  const isActive = booking.status !== 'cancelled';
+  const arrivedBadge = booking.arrivedAt ? `<span class="arrival-badge">Клиент пришел · ${arrivedBy}</span>` : '';
   card.innerHTML = `
     <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
     <div class="booking-primary">${clientName}</div>
@@ -264,16 +273,23 @@ function bookingCard(booking) {
     <div class="booking-badges">
       <span>${zoneLabel}</span>
       <span>${seat}</span>
+      ${arrivedBadge}
     </div>
     <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
     ${note ? `<div class="booking-client">${note}</div>` : ''}
     <div class="booking-actions">
+      ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Клиент пришел</button>' : ''}
       <button class="ghost small" data-action="edit">Изменить</button>
-      ${booking.status !== 'cancelled' ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
+      ${isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
     </div>
   `;
   card.addEventListener('click', (event) => {
     const action = event.target?.dataset?.action;
+    if (action === 'arrival') {
+      event.stopPropagation();
+      confirmArrival(booking.id).catch((e) => ($('#formError').textContent = e.message));
+      return;
+    }
     if (action === 'cancel') {
       event.stopPropagation();
       cancelBooking(booking.id).catch((e) => ($('#formError').textContent = e.message));
