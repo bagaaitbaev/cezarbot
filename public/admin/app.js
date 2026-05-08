@@ -29,6 +29,7 @@ const bookingForm = $('#bookingForm');
 const staffForm = $('#staffForm');
 const dateInput = $('#dateInput');
 const columns = $('#columns');
+const cancelledBookings = $('#cancelledBookings');
 const soundToggle = $('#soundToggle');
 const liveStatus = $('#liveStatus');
 const staffButton = $('#staffButton');
@@ -390,6 +391,24 @@ function remindOpenSessions(bookings) {
   setTimeout(() => updateLiveStatus('Онлайн'), 6000);
 }
 
+function renderCancelledBookings(bookings) {
+  cancelledBookings.innerHTML = '';
+  if (!bookings.length) {
+    cancelledBookings.classList.add('hidden');
+    return;
+  }
+  cancelledBookings.classList.remove('hidden');
+  cancelledBookings.innerHTML = `
+    <div class="cancelled-head">
+      <h3>Отмененные брони</h3>
+      <span>${bookings.length}</span>
+    </div>
+    <div class="cancelled-list"></div>
+  `;
+  const list = cancelledBookings.querySelector('.cancelled-list');
+  bookings.forEach((booking) => list.append(bookingCard(booking)));
+}
+
 function renderDashboard(data, { notify = false } = {}) {
   const activeIds = new Set(data.bookings.filter((b) => b.status !== 'cancelled').map((b) => Number(b.id)));
   const newBookings =
@@ -409,12 +428,13 @@ function renderDashboard(data, { notify = false } = {}) {
   $('#statOpenSessions').textContent = data.stats.openSessions || 0;
   $('#statStaff').textContent = data.stats.staff;
   columns.innerHTML = '';
+  const cancelledRows = data.bookings.filter((b) => b.status === 'cancelled');
 
   for (const zone of ['zal', 'cabinet', 'vip']) {
     const column = document.createElement('section');
     column.className = 'zone-column';
-    const rows = data.bookings.filter((b) => b.zone === zone);
-    const activeCount = rows.filter((b) => b.status !== 'cancelled').length;
+    const rows = data.bookings.filter((b) => b.zone === zone && b.status !== 'cancelled');
+    const activeCount = rows.length;
     column.innerHTML = `
       <div class="zone-title">
         ${escapeHtml(data.zones[zone].label)}
@@ -430,6 +450,7 @@ function renderDashboard(data, { notify = false } = {}) {
     rows.forEach((booking) => column.append(bookingCard(booking)));
     columns.append(column);
   }
+  renderCancelledBookings(cancelledRows);
 
   notifyNewBookings(newBookings);
   remindOpenSessions(data.bookings);

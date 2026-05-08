@@ -418,7 +418,11 @@ label {
 }
 .booking-card[data-source="Telegram"] { border-left-color: var(--telegram); }
 .booking-card[data-source="WhatsApp"] { border-left-color: var(--whatsapp); }
-.booking-card[data-status="cancelled"] { opacity: 0.42; }
+.booking-card[data-status="cancelled"] {
+  opacity: 0.72;
+  border-left-color: rgba(142, 142, 147, 0.58);
+  background: rgba(255, 255, 255, 0.62);
+}
 .booking-card[data-arrived="true"] {
   border-color: rgba(12, 125, 56, 0.22);
   border-left-color: #0c7d38;
@@ -567,6 +571,43 @@ label {
   padding: 24px 6px;
   text-align: center;
 }
+.cancelled-bookings {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.cancelled-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.cancelled-head h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 750;
+}
+.cancelled-head span {
+  min-width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.045);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.cancelled-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.cancelled-list .booking-card {
+  margin-bottom: 0;
+}
 .modal {
   position: fixed;
   inset: 0;
@@ -645,6 +686,7 @@ label {
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .panel { position: static; }
   .columns { grid-template-columns: 1fr; }
+  .cancelled-list { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {
