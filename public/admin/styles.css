@@ -140,12 +140,16 @@ button:disabled { opacity: 0.55; cursor: default; }
 .topbar-brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 15px;
 }
 .small-brand {
-  width: 46px;
-  height: 46px;
-  border-radius: 13px;
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+}
+.small-brand img {
+  width: 78%;
+  height: 78%;
 }
 .login h1, .topbar h1, .panel h2, .calendar h2 {
   margin: 12px 0 4px;
@@ -226,6 +230,7 @@ select:focus {
   font-size: 34px;
   line-height: 1.06;
   font-weight: 760;
+  margin: 0;
 }
 .top-actions {
   display: flex;
