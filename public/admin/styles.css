@@ -520,41 +520,41 @@ label {
   background: var(--cancelled-card);
 }
 .booking-card[data-arrived="true"] {
-  border-color: rgba(12, 125, 56, 0.22);
+  border-color: var(--line);
   border-left-color: var(--success-text);
-  background: linear-gradient(180deg, rgba(37, 211, 102, 0.08), var(--surface-solid) 46%);
+  background: var(--surface-solid);
 }
 .booking-card[data-open-session="true"] {
-  border-color: rgba(191, 105, 0, 0.24);
+  border-color: var(--line);
   border-left-color: var(--warning-border);
-  background: linear-gradient(180deg, rgba(255, 149, 0, 0.12), var(--surface-solid) 48%);
+  background: var(--surface-solid);
 }
 .booking-card[data-open-session="true"][data-overdue="true"] {
   border-color: rgba(215, 0, 21, 0.22);
   border-left-color: var(--danger);
 }
 .booking-summary {
-  min-height: 76px;
+  min-height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 14px 12px;
+  padding: 11px 14px 10px;
 }
 .booking-card strong {
   display: block;
   font-size: 15px;
-  margin-bottom: 7px;
+  margin-bottom: 5px;
 }
 .booking-primary {
   color: var(--text);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.25;
 }
 .booking-chevron {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -601,37 +601,40 @@ label {
   opacity: 1;
 }
 .booking-card[data-expanded="true"] .booking-details-inner {
-  padding-bottom: 13px;
+  padding-bottom: 11px;
 }
 .booking-phone {
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 9px;
+  margin-bottom: 8px;
 }
 .booking-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 9px;
+  gap: 5px;
+  margin-bottom: 8px;
 }
 .booking-badges span {
   display: inline-flex;
   align-items: center;
-  min-height: 26px;
-  border-radius: 8px;
-  background: var(--accent-soft);
+  min-height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
   color: var(--accent-text);
-  padding: 0 9px;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 680;
 }
 .booking-badges .arrival-badge {
-  background: var(--success-soft);
+  background: transparent;
+  border-color: rgba(37, 211, 102, 0.28);
   color: var(--success-text);
 }
 .booking-badges .session-badge {
-  background: var(--warning-soft);
+  background: transparent;
+  border-color: rgba(255, 149, 0, 0.3);
   color: var(--warning-text);
 }
 .booking-badges .session-badge.is-overdue {
@@ -644,10 +647,17 @@ label {
   line-height: 1.45;
 }
 .booking-actions {
-  margin-top: 10px;
+  margin-top: 9px;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+}
+.booking-actions .small {
+  min-height: 30px;
+  border-radius: 8px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 680;
 }
 .arrival {
   background: var(--success-soft);
