@@ -381,6 +381,70 @@ label {
 .booking-form button[type="submit"]:hover {
   filter: brightness(1.04);
 }
+.time-field {
+  position: relative;
+}
+.time-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--text);
+  padding: 0 12px;
+  box-shadow: none;
+}
+.time-trigger::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--chevron-stroke);
+  border-bottom: 2px solid var(--chevron-stroke);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+.time-trigger[aria-expanded="true"] {
+  border-color: rgba(0, 113, 227, 0.65);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+.time-trigger[aria-expanded="true"]::after {
+  border-color: var(--accent-text);
+  transform: translateY(2px) rotate(225deg);
+}
+.time-picker {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  padding: 8px;
+}
+.time-option {
+  min-height: 34px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+  font-size: 13px;
+  font-weight: 680;
+}
+.time-option:hover {
+  background: var(--ghost-bg);
+}
+.time-option.is-selected {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -31,6 +31,8 @@ const staffForm = $('#staffForm');
 const dateInput = $('#dateInput');
 const columns = $('#columns');
 const cancelledBookings = $('#cancelledBookings');
+const timeTrigger = $('#timeTrigger');
+const timePicker = $('#timePicker');
 const themeToggle = $('#themeToggle');
 const soundToggle = $('#soundToggle');
 const liveStatus = $('#liveStatus');
@@ -43,6 +45,8 @@ const SEATS_BY_ZONE = {
   cabinet: [6, 7, 8],
   vip: [9, 10],
 };
+
+const TIME_OPTIONS = ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00'];
 
 function money(value) {
   return `${new Intl.NumberFormat('ru-RU').format(Number(value || 0))} ₸`;
@@ -223,7 +227,7 @@ function formPayload() {
 function resetForm() {
   bookingForm.reset();
   bookingForm.elements.id.value = '';
-  bookingForm.elements.time.value = '15:00';
+  setBookingTime('15:00');
   $('#formTitle').textContent = 'Новая бронь';
   $('#formError').textContent = '';
   syncSeatOptions();
@@ -236,7 +240,7 @@ function editBooking(booking) {
   bookingForm.elements.phone.value = booking.phone || '';
   bookingForm.elements.zone.value = booking.zone;
   syncSeatOptions(booking.seat);
-  bookingForm.elements.time.value = booking.time;
+  setBookingTime(booking.time);
   bookingForm.elements.durationMinutes.value = booking.durationMinutes;
   bookingForm.elements.withCombo.checked = booking.withCombo;
   bookingForm.elements.note.value = booking.note || '';
@@ -261,6 +265,38 @@ function syncComboAvailability() {
   const unavailable = duration === 60;
   if (unavailable) combo.checked = false;
   combo.disabled = unavailable;
+}
+
+function setBookingTime(value) {
+  const time = TIME_OPTIONS.includes(value) ? value : '15:00';
+  bookingForm.elements.time.value = time;
+  timeTrigger.querySelector('span').textContent = time;
+  timePicker.querySelectorAll('[data-time]').forEach((button) => {
+    button.classList.toggle('is-selected', button.dataset.time === time);
+  });
+}
+
+function openTimePicker() {
+  timePicker.classList.remove('hidden');
+  timeTrigger.setAttribute('aria-expanded', 'true');
+}
+
+function closeTimePicker() {
+  timePicker.classList.add('hidden');
+  timeTrigger.setAttribute('aria-expanded', 'false');
+}
+
+function renderTimePicker() {
+  timePicker.innerHTML = TIME_OPTIONS.map(
+    (time) => `<button class="time-option" type="button" role="option" data-time="${time}">${time}</button>`,
+  ).join('');
+  timePicker.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-time]');
+    if (!button) return;
+    setBookingTime(button.dataset.time);
+    closeTimePicker();
+  });
+  setBookingTime(bookingForm.elements.time.value || '15:00');
 }
 
 async function cancelBooking(id) {
@@ -645,6 +681,7 @@ staffModal.addEventListener('click', (event) => {
 });
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !staffModal.classList.contains('hidden')) closeStaffModal();
+  if (event.key === 'Escape') closeTimePicker();
 });
 soundToggle.addEventListener('click', async () => {
   try {
@@ -655,11 +692,20 @@ soundToggle.addEventListener('click', async () => {
   }
 });
 themeToggle.addEventListener('click', toggleTheme);
+timeTrigger.addEventListener('click', (event) => {
+  event.stopPropagation();
+  if (timePicker.classList.contains('hidden')) openTimePicker();
+  else closeTimePicker();
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.time-field')) closeTimePicker();
+});
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) pollDashboard();
 });
 
 applyTheme();
+renderTimePicker();
 syncSeatOptions();
 syncComboAvailability();
 updateSoundButton();
