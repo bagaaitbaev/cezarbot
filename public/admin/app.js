@@ -80,6 +80,25 @@ function durationLabel(minutes) {
   return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
 }
 
+function normalizePhoneDigits(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.length === 10) digits = `7${digits}`;
+  if (digits.startsWith('8')) digits = `7${digits.slice(1)}`;
+  return digits.slice(0, 11);
+}
+
+function formatPhone(value) {
+  const digits = normalizePhoneDigits(value);
+  if (!digits) return '';
+  if (!digits.startsWith('7')) return digits;
+  const parts = ['+7'];
+  const chunks = [digits.slice(1, 4), digits.slice(4, 7), digits.slice(7, 9), digits.slice(9, 11)];
+  for (const chunk of chunks) {
+    if (chunk) parts.push(chunk);
+  }
+  return parts.join(' ');
+}
+
 async function api(path, options = {}) {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
@@ -212,7 +231,7 @@ function formPayload() {
     id: fd.get('id'),
     date: state.date,
     clientName: fd.get('clientName'),
-    phone: fd.get('phone'),
+    phone: normalizePhoneDigits(fd.get('phone')),
     zone: fd.get('zone'),
     seat: fd.get('seat'),
     time: fd.get('time'),
@@ -227,6 +246,7 @@ function formPayload() {
 function resetForm() {
   bookingForm.reset();
   bookingForm.elements.id.value = '';
+  bookingForm.elements.phone.value = '';
   setBookingTime('15:00');
   $('#formTitle').textContent = 'Новая бронь';
   $('#formError').textContent = '';
@@ -237,7 +257,7 @@ function resetForm() {
 function editBooking(booking) {
   bookingForm.elements.id.value = booking.id;
   bookingForm.elements.clientName.value = booking.clientName || '';
-  bookingForm.elements.phone.value = booking.phone || '';
+  bookingForm.elements.phone.value = formatPhone(booking.phone);
   bookingForm.elements.zone.value = booking.zone;
   syncSeatOptions(booking.seat);
   setBookingTime(booking.time);
@@ -340,7 +360,7 @@ function bookingCard(booking) {
   card.setAttribute('aria-expanded', String(isExpanded));
   const source = escapeHtml(booking.source);
   const clientName = escapeHtml(booking.clientName || 'Клиент');
-  const phone = escapeHtml(booking.phone);
+  const phone = escapeHtml(formatPhone(booking.phone));
   const note = escapeHtml(booking.note);
   const zoneLabel = escapeHtml(booking.zoneLabel || booking.zone);
   const seat = booking.seat ? escapeHtml(`Место ${booking.seat}`) : 'Место не выбрано';
@@ -630,6 +650,12 @@ bookingForm.addEventListener('submit', async (event) => {
   } catch (e) {
     $('#formError').textContent = e.message;
   }
+});
+bookingForm.elements.phone.addEventListener('input', (event) => {
+  event.target.value = formatPhone(event.target.value);
+});
+bookingForm.elements.phone.addEventListener('blur', (event) => {
+  event.target.value = formatPhone(event.target.value);
 });
 
 staffForm.addEventListener('submit', async (event) => {
