@@ -598,20 +598,30 @@ label {
   border-left-color: var(--danger);
 }
 .booking-summary {
-  min-height: 68px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 14px 10px;
+  padding: 10px 12px;
 }
-.booking-card strong {
+.booking-summary-line {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.booking-summary-line strong {
+  flex: 0 0 auto;
   display: block;
   font-size: 15px;
   line-height: 1.25;
-  margin-bottom: 5px;
 }
-.booking-primary {
+.booking-summary-line span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text);
   font-size: 15px;
   font-weight: 700;

@@ -363,15 +363,15 @@ function bookingCard(booking) {
   })();
   card.innerHTML = `
     <div class="booking-summary">
-      <div>
+      <div class="booking-summary-line">
         <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
-        <div class="booking-primary">${clientName}</div>
+        <span>${clientName}</span>
       </div>
       <span class="booking-chevron" aria-hidden="true"></span>
     </div>
     <div class="booking-details">
       <div class="booking-details-inner">
-        <div class="booking-phone">${phone || 'Телефон не указан'}</div>
+        <div class="booking-phone">Тел: ${phone || 'не указан'}</div>
         <div class="booking-badges">
           <span>${zoneLabel}</span>
           <span>${seat}</span>
