@@ -18,6 +18,7 @@ const state = {
   audioContext: null,
   notificationAudio: null,
   pollTimer: null,
+  openSessionReminderAt: 0,
 };
 
 const login = $('#login');
@@ -56,6 +57,19 @@ function dayLabel(date) {
     day: 'numeric',
     month: 'long',
   }).format(new Date(`${date}T12:00:00`));
+}
+
+function minutesSince(iso) {
+  if (!iso) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
+}
+
+function durationLabel(minutes) {
+  const value = Number(minutes || 0);
+  if (value < 60) return `${value} мин`;
+  const hours = Math.floor(value / 60);
+  const rest = value % 60;
+  return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
 }
 
 async function api(path, options = {}) {
@@ -245,6 +259,17 @@ async function confirmArrival(id) {
   await loadDashboard();
 }
 
+async function openSession(id) {
+  await api(`/api/bookings/${id}/open-session`, { method: 'POST' });
+  await loadDashboard();
+}
+
+async function closeSession(id) {
+  if (!confirm(`Закрыть открытую сессию #${id}?`)) return;
+  await api(`/api/bookings/${id}/close-session`, { method: 'POST' });
+  await loadDashboard();
+}
+
 function sourceClass(source) {
   if (source === 'Telegram') return 'telegram';
   if (source === 'WhatsApp') return 'whatsapp';
@@ -257,6 +282,7 @@ function bookingCard(booking) {
   card.dataset.source = booking.source;
   card.dataset.status = booking.status;
   card.dataset.arrived = booking.arrivedAt ? 'true' : 'false';
+  card.dataset.openSession = booking.openSessionStartedAt && !booking.openSessionClosedAt ? 'true' : 'false';
   const source = escapeHtml(booking.source);
   const clientName = escapeHtml(booking.clientName || 'Клиент');
   const phone = escapeHtml(booking.phone);
@@ -265,7 +291,21 @@ function bookingCard(booking) {
   const seat = booking.seat ? escapeHtml(`Место ${booking.seat}`) : 'Место не выбрано';
   const arrivedBy = escapeHtml(booking.arrivedByName || booking.arrivedBy || 'сотрудник');
   const isActive = booking.status !== 'cancelled';
+  const isOpenSession = Boolean(booking.openSessionStartedAt && !booking.openSessionClosedAt);
+  const isOverdueOpenSession = isOpenSession && new Date(booking.endDatetime).getTime() <= Date.now();
+  card.dataset.overdue = isOverdueOpenSession ? 'true' : 'false';
   const arrivedBadge = booking.arrivedAt ? `<span class="arrival-badge">Клиент пришел · ${arrivedBy}</span>` : '';
+  const sessionBadge = (() => {
+    if (isOpenSession) {
+      const extraMinutes = minutesSince(booking.endDatetime);
+      const text = extraMinutes > 0 ? `Открытая сессия · +${durationLabel(extraMinutes)}` : 'Открытая сессия';
+      return `<span class="session-badge ${isOverdueOpenSession ? 'is-overdue' : ''}">${escapeHtml(text)}</span>`;
+    }
+    if (booking.openSessionClosedAt) {
+      return `<span class="session-badge">Закрыта в ${escapeHtml(booking.effectiveEndTime || booking.endTime)}</span>`;
+    }
+    return '';
+  })();
   card.innerHTML = `
     <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
     <div class="booking-primary">${clientName}</div>
@@ -274,11 +314,13 @@ function bookingCard(booking) {
       <span>${zoneLabel}</span>
       <span>${seat}</span>
       ${arrivedBadge}
+      ${sessionBadge}
     </div>
     <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
     ${note ? `<div class="booking-client">${note}</div>` : ''}
     <div class="booking-actions">
       ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Клиент пришел</button>' : ''}
+      ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть сессию' : 'Открытая сессия'}</button>` : ''}
       <button class="ghost small" data-action="edit">Изменить</button>
       ${isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
     </div>
@@ -290,6 +332,16 @@ function bookingCard(booking) {
       confirmArrival(booking.id).catch((e) => ($('#formError').textContent = e.message));
       return;
     }
+    if (action === 'openSession') {
+      event.stopPropagation();
+      openSession(booking.id).catch((e) => ($('#formError').textContent = e.message));
+      return;
+    }
+    if (action === 'closeSession') {
+      event.stopPropagation();
+      closeSession(booking.id).catch((e) => ($('#formError').textContent = e.message));
+      return;
+    }
     if (action === 'cancel') {
       event.stopPropagation();
       cancelBooking(booking.id).catch((e) => ($('#formError').textContent = e.message));
@@ -298,6 +350,17 @@ function bookingCard(booking) {
     editBooking(booking);
   });
   return card;
+}
+
+function remindOpenSessions(bookings) {
+  const overdue = bookings.filter((b) => b.openSessionStartedAt && !b.openSessionClosedAt && new Date(b.endDatetime).getTime() <= Date.now());
+  if (!overdue.length) return;
+  const now = Date.now();
+  if (now - state.openSessionReminderAt < 15 * 60 * 1000) return;
+  state.openSessionReminderAt = now;
+  updateLiveStatus(`Проверьте открытую сессию #${overdue[0].id}`);
+  playNotificationSound();
+  setTimeout(() => updateLiveStatus('Онлайн'), 6000);
 }
 
 function renderDashboard(data, { notify = false } = {}) {
@@ -316,6 +379,7 @@ function renderDashboard(data, { notify = false } = {}) {
   $('#statActive').textContent = data.stats.active;
   $('#statRevenue').textContent = money(data.stats.revenue);
   $('#statOnline').textContent = data.stats.telegram + data.stats.whatsapp;
+  $('#statOpenSessions').textContent = data.stats.openSessions || 0;
   $('#statStaff').textContent = data.stats.staff;
   columns.innerHTML = '';
 
@@ -341,6 +405,7 @@ function renderDashboard(data, { notify = false } = {}) {
   }
 
   notifyNewBookings(newBookings);
+  remindOpenSessions(data.bookings);
 }
 
 async function loadDashboard({ notify = false, refreshStaff = false } = {}) {

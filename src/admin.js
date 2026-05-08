@@ -11,9 +11,11 @@ import { ZONE_CAPACITY, ZONES } from './config.js';
 import { getPrice } from './pricing.js';
 import {
   analyzeOverlapForSlot,
+  effectiveBookingEndMs,
   getAllClientsForExport,
   getStaffAccount,
   isBookedStatus,
+  isOpenSession,
   listStaffAccounts,
   openDb,
   refreshDb,
@@ -209,6 +211,7 @@ function localDateRange(date) {
 function bookingView(booking) {
   const user = db.users[String(booking.user_id)] || {};
   const start = dayjs(booking.start_datetime).tz(TZ);
+  const effectiveEndMs = effectiveBookingEndMs(booking);
   return {
     id: booking.id,
     source: booking.source || sourceLabel(booking.user_id),
@@ -220,7 +223,9 @@ function bookingView(booking) {
     time: start.format('HH:mm'),
     startDatetime: booking.start_datetime,
     durationMinutes: booking.duration_minutes,
+    endDatetime: start.add(Number(booking.duration_minutes || 0), 'minute').toISOString(),
     endTime: start.add(Number(booking.duration_minutes || 0), 'minute').format('HH:mm'),
+    effectiveEndTime: Number.isFinite(effectiveEndMs) ? dayjs(effectiveEndMs).tz(TZ).format('HH:mm') : '',
     withCombo: booking.with_combo === 1,
     totalPrice: Number(booking.total_price || 0),
     promoCode: booking.promo_code || '',
@@ -234,6 +239,13 @@ function bookingView(booking) {
     arrivedAt: booking.arrived_at || '',
     arrivedBy: booking.arrived_by || '',
     arrivedByName: booking.arrived_by_name || '',
+    openSessionStartedAt: booking.open_session_started_at || '',
+    openSessionStartedBy: booking.open_session_started_by || '',
+    openSessionStartedByName: booking.open_session_started_by_name || '',
+    openSessionClosedAt: booking.open_session_closed_at || '',
+    openSessionClosedBy: booking.open_session_closed_by || '',
+    openSessionClosedByName: booking.open_session_closed_by_name || '',
+    actualDurationMinutes: booking.actual_duration_minutes || '',
     clientName: user.telegram_name || 'Клиент',
     phone: user.phone || '',
     userId: booking.user_id,
@@ -243,8 +255,14 @@ function bookingView(booking) {
 function listBookings(date) {
   refreshDb(db);
   const { start, end } = localDateRange(date);
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
   return db.bookings
-    .filter((b) => b.start_datetime >= start && b.start_datetime < end)
+    .filter((b) => {
+      if (!isBookedStatus(b.status)) return b.start_datetime >= start && b.start_datetime < end;
+      const bookingStart = new Date(b.start_datetime).getTime();
+      return bookingStart < endMs && effectiveBookingEndMs(b) > startMs;
+    })
     .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime))
     .map(bookingView);
 }
@@ -270,7 +288,7 @@ function validateBookingPayload(payload, excludeId = null) {
     if (!isBookedStatus(booking.status)) return false;
     if (booking.zone !== zone || String(booking.seat || '') !== seat) return false;
     const bookingStart = new Date(booking.start_datetime).getTime();
-    const bookingEnd = bookingStart + Number(booking.duration_minutes || 0) * 60_000;
+    const bookingEnd = effectiveBookingEndMs(booking);
     return startMs < bookingEnd && bookingStart < endMs;
   });
   if (seatBusy) return { ok: false, error: `Место ${seat} уже занято на это время.` };
@@ -345,6 +363,32 @@ function confirmBookingArrival(id, actor) {
   return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось подтвердить приход клиента.' };
 }
 
+function openBookingSession(id, actor) {
+  refreshDb(db);
+  const existing = db.bookings.find((b) => Number(b.id) === Number(id));
+  if (!existing || !isBookedStatus(existing.status)) return { ok: false, error: 'Бронь не найдена.' };
+  if (isOpenSession(existing)) return { ok: true, booking: bookingView(existing) };
+  const result = updateBooking(db, id, actorFields(actor, 'open_session_started'));
+  return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось открыть сессию.' };
+}
+
+function closeBookingSession(id, actor) {
+  refreshDb(db);
+  const existing = db.bookings.find((b) => Number(b.id) === Number(id));
+  if (!existing || !isBookedStatus(existing.status)) return { ok: false, error: 'Бронь не найдена.' };
+  if (!isOpenSession(existing)) return { ok: false, error: 'Открытая сессия не найдена.' };
+  const nowIso = new Date().toISOString();
+  const startMs = new Date(existing.start_datetime).getTime();
+  const actualDurationMinutes = Math.max(Number(existing.duration_minutes || 0), Math.ceil((Date.now() - startMs) / 60_000));
+  const result = updateBooking(db, id, {
+    open_session_closed_at: nowIso,
+    open_session_closed_by: actor?.username || '',
+    open_session_closed_by_name: actor?.name || actor?.username || '',
+    actual_duration_minutes: actualDurationMinutes,
+  });
+  return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось закрыть сессию.' };
+}
+
 function dashboard(date) {
   const bookings = listBookings(date);
   const active = bookings.filter((b) => isBookedStatus(b.status));
@@ -359,6 +403,7 @@ function dashboard(date) {
       telegram: active.filter((b) => b.source === 'Telegram').length,
       whatsapp: active.filter((b) => b.source === 'WhatsApp').length,
       staff: active.filter((b) => b.source === 'Сотрудник').length,
+      openSessions: active.filter((b) => b.openSessionStartedAt && !b.openSessionClosedAt).length,
     },
   };
 }
@@ -434,6 +479,10 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/bookings' && req.method === 'POST') return json(res, 200, createManualBooking(await readBody(req), actor));
   const bookingArrivalMatch = pathname.match(/^\/api\/bookings\/(\d+)\/arrival$/);
   if (bookingArrivalMatch && req.method === 'POST') return json(res, 200, confirmBookingArrival(bookingArrivalMatch[1], actor));
+  const bookingOpenSessionMatch = pathname.match(/^\/api\/bookings\/(\d+)\/open-session$/);
+  if (bookingOpenSessionMatch && req.method === 'POST') return json(res, 200, openBookingSession(bookingOpenSessionMatch[1], actor));
+  const bookingCloseSessionMatch = pathname.match(/^\/api\/bookings\/(\d+)\/close-session$/);
+  if (bookingCloseSessionMatch && req.method === 'POST') return json(res, 200, closeBookingSession(bookingCloseSessionMatch[1], actor));
   const bookingMatch = pathname.match(/^\/api\/bookings\/(\d+)$/);
   if (bookingMatch && req.method === 'PATCH') return json(res, 200, updateExistingBooking(bookingMatch[1], await readBody(req), actor));
   if (bookingMatch && req.method === 'DELETE') {

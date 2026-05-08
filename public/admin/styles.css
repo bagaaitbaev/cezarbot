@@ -201,7 +201,7 @@ input:focus, select:focus, textarea:focus {
   max-width: 1440px;
   margin: 0 auto 18px;
   display: grid;
-  grid-template-columns: 340px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 340px repeat(4, minmax(0, 1fr));
   gap: 16px;
   align-items: stretch;
 }
@@ -394,6 +394,15 @@ label {
   border-left-color: #0c7d38;
   background: linear-gradient(180deg, rgba(37, 211, 102, 0.08), #fff 46%);
 }
+.booking-card[data-open-session="true"] {
+  border-color: rgba(191, 105, 0, 0.24);
+  border-left-color: #bf6900;
+  background: linear-gradient(180deg, rgba(255, 149, 0, 0.12), #fff 48%);
+}
+.booking-card[data-open-session="true"][data-overdue="true"] {
+  border-color: rgba(215, 0, 21, 0.22);
+  border-left-color: var(--danger);
+}
 .booking-card strong {
   display: block;
   font-size: 15px;
@@ -433,6 +442,14 @@ label {
   background: rgba(37, 211, 102, 0.14);
   color: #0c7d38;
 }
+.booking-badges .session-badge {
+  background: rgba(255, 149, 0, 0.16);
+  color: #9a5200;
+}
+.booking-badges .session-badge.is-overdue {
+  background: rgba(215, 0, 21, 0.09);
+  color: var(--danger);
+}
 .booking-meta, .booking-client {
   color: var(--muted);
   font-size: 13px;
@@ -447,6 +464,10 @@ label {
 .arrival {
   background: rgba(37, 211, 102, 0.14);
   color: #0c7d38;
+}
+.session {
+  background: rgba(255, 149, 0, 0.16);
+  color: #9a5200;
 }
 .danger {
   background: rgba(215, 0, 21, 0.08);

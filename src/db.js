@@ -202,6 +202,21 @@ export function isBookedStatus(status) {
   return status === 'booked' || status === 'confirmed';
 }
 
+export function isOpenSession(booking) {
+  return Boolean(booking?.open_session_started_at && !booking?.open_session_closed_at);
+}
+
+export function scheduledBookingEndMs(booking) {
+  return new Date(booking.start_datetime).getTime() + Number(booking.duration_minutes || 0) * 60 * 1000;
+}
+
+export function effectiveBookingEndMs(booking) {
+  if (isOpenSession(booking)) return Number.POSITIVE_INFINITY;
+  const scheduledEnd = scheduledBookingEndMs(booking);
+  const closedEnd = booking.open_session_closed_at ? new Date(booking.open_session_closed_at).getTime() : null;
+  return closedEnd ? Math.max(scheduledEnd, closedEnd) : scheduledEnd;
+}
+
 /** JSON-файл как база данных */
 export function openDb() {
   const p = resolvePath();
@@ -470,10 +485,10 @@ export function analyzeOverlapForSlot(db, zone, startMs, endMs, excludeId = null
   for (const row of rows) {
     if (excludeId != null && Number(row.id) === Number(excludeId)) continue;
     const s = new Date(row.start_datetime).getTime();
-    const e = s + row.duration_minutes * 60 * 1000;
+    const e = effectiveBookingEndMs(row);
     if (startMs < e && s < endMs) {
       count++;
-      if (earliestEndMs === null || e < earliestEndMs) earliestEndMs = e;
+      if (Number.isFinite(e) && (earliestEndMs === null || e < earliestEndMs)) earliestEndMs = e;
     }
   }
   return { count, earliestEndMs };
@@ -525,8 +540,8 @@ export function getBookingsNeedingReview2gis(db) {
     if (!isBookedStatus(b.status)) return false;
     if (b.review_2gis_eligible !== 1) return false;
     if (b.review_2gis_sent !== 0) return false;
-    const start = new Date(b.start_datetime).getTime();
-    const end = start + b.duration_minutes * 60 * 1000;
+    if (isOpenSession(b)) return false;
+    const end = effectiveBookingEndMs(b);
     return now >= end + REVIEW_2GIS_DELAY_MS;
   });
 }
