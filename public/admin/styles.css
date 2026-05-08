@@ -608,6 +608,7 @@ label {
 .booking-card strong {
   display: block;
   font-size: 15px;
+  line-height: 1.25;
   margin-bottom: 5px;
 }
 .booking-primary {
@@ -671,6 +672,7 @@ label {
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.35;
   margin-bottom: 8px;
 }
 .booking-badges {
@@ -707,21 +709,23 @@ label {
 }
 .booking-meta, .booking-client {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .booking-actions {
   margin-top: 9px;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  flex-wrap: wrap;
 }
 .booking-actions .small {
   min-height: 30px;
   border-radius: 8px;
-  padding: 0 9px;
+  width: 100%;
+  padding: 0 6px;
   font-size: 12px;
   font-weight: 680;
+  white-space: nowrap;
 }
 .arrival {
   background: var(--success-soft);
@@ -863,6 +867,7 @@ label {
   .topbar h1 { font-size: 30px; }
   .stats { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }
+  .booking-actions { grid-template-columns: 1fr; }
   .date-controls {
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) 38px;
