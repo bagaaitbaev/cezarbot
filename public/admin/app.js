@@ -108,6 +108,12 @@ function cleanPhoneInput(value) {
   return `${hasLeadingPlus ? '+' : ''}${digits}`;
 }
 
+function formatPhoneInput(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.length >= 11) return formatPhone(value);
+  return cleanPhoneInput(value);
+}
+
 async function api(path, options = {}) {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
@@ -668,7 +674,7 @@ bookingForm.addEventListener('submit', async (event) => {
   }
 });
 bookingForm.elements.phone.addEventListener('input', (event) => {
-  event.target.value = cleanPhoneInput(event.target.value);
+  event.target.value = formatPhoneInput(event.target.value);
 });
 bookingForm.elements.phone.addEventListener('blur', (event) => {
   event.target.value = formatPhone(event.target.value);
