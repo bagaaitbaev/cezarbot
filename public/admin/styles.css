@@ -253,12 +253,20 @@ select:focus {
   gap: 7px;
 }
 .session-actions > * {
-  min-height: 34px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
 }
+.top-actions .icon-btn {
+  width: 40px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 9px;
+  font-size: 21px;
+}
 .top-actions .ghost {
-  min-height: 34px;
+  height: 36px;
+  min-height: 36px;
   border-radius: 9px;
   background: var(--ghost-bg);
   color: var(--text);
@@ -268,14 +276,16 @@ select:focus {
 }
 .top-actions input {
   width: 150px;
-  height: 38px;
+  height: 36px;
+  min-height: 36px;
   border-radius: 9px;
   background: var(--field);
   font-size: 14px;
   font-weight: 550;
 }
 .user-pill {
-  min-height: 34px;
+  height: 36px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   border-radius: 9px;
@@ -286,7 +296,8 @@ select:focus {
   font-weight: 650;
 }
 .live-pill {
-  min-height: 34px;
+  height: 36px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   border-radius: 9px;
