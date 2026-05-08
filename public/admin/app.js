@@ -1,4 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
+const SOUND_STORAGE_KEY = 'cezarSoundEnabled';
 
 function todayLocal() {
   const d = new Date();
@@ -14,7 +15,7 @@ const state = {
   user: null,
   knownBookingIds: new Set(),
   hasDashboardSnapshot: false,
-  soundEnabled: false,
+  soundEnabled: localStorage.getItem(SOUND_STORAGE_KEY) === 'true',
   audioContext: null,
   notificationAudio: null,
   pollTimer: null,
@@ -153,39 +154,46 @@ function toggleTheme() {
   applyTheme();
 }
 
-async function enableSound() {
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+function ensureNotificationAudio() {
   if (!state.notificationAudio) {
     state.notificationAudio = new Audio(NOTIFICATION_SOUND_URL);
     state.notificationAudio.preload = 'auto';
     state.notificationAudio.volume = 0.9;
   }
+}
+
+async function enableSound({ preview = true } = {}) {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  ensureNotificationAudio();
   if (AudioCtx && !state.audioContext) state.audioContext = new AudioCtx();
   if (state.audioContext?.state === 'suspended') await state.audioContext.resume();
   state.soundEnabled = true;
+  localStorage.setItem(SOUND_STORAGE_KEY, 'true');
   updateSoundButton();
-  await playNotificationSound();
+  if (preview) await playNotificationSound();
 }
 
 function disableSound() {
   state.soundEnabled = false;
+  localStorage.setItem(SOUND_STORAGE_KEY, 'false');
   updateSoundButton();
 }
 
 async function playNotificationSound() {
   if (!state.soundEnabled) return;
   try {
-    if (!state.notificationAudio) {
-      state.notificationAudio = new Audio(NOTIFICATION_SOUND_URL);
-      state.notificationAudio.preload = 'auto';
-      state.notificationAudio.volume = 0.9;
-    }
+    ensureNotificationAudio();
     state.notificationAudio.pause();
     state.notificationAudio.currentTime = 0;
     await state.notificationAudio.play();
   } catch {
     playFallbackTone();
   }
+}
+
+function unlockSoundAfterGesture() {
+  if (!state.soundEnabled) return;
+  enableSound({ preview: false }).catch(() => {});
 }
 
 function playFallbackTone() {
@@ -729,6 +737,8 @@ document.addEventListener('click', (event) => {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) pollDashboard();
 });
+document.addEventListener('pointerdown', unlockSoundAfterGesture, { passive: true });
+document.addEventListener('keydown', unlockSoundAfterGesture);
 
 applyTheme();
 renderTimePicker();
