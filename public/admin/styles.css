@@ -144,14 +144,19 @@ input:focus, select:focus, textarea:focus {
   max-width: 1440px;
   margin: 0 auto 18px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 340px repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
 }
 .stats div {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
-  padding: 18px;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 18px 22px;
   box-shadow: 0 8px 30px rgba(22, 22, 26, 0.04);
 }
 .stats span {
@@ -185,8 +190,13 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 48px;
 }
-.panel h2, .calendar h2 { font-size: 20px; }
+.panel h2, .calendar h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
 label {
   display: grid;
   gap: 7px;
@@ -383,7 +393,7 @@ label {
   .topbar, .workspace { grid-template-columns: 1fr; display: grid; }
   .topbar { align-items: start; }
   .top-actions { justify-content: start; }
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .panel { position: static; }
   .columns { grid-template-columns: 1fr; }
 }

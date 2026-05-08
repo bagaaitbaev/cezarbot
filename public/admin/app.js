@@ -18,6 +18,7 @@ const login = $('#login');
 const app = $('#app');
 const loginForm = $('#loginForm');
 const bookingForm = $('#bookingForm');
+const staffForm = $('#staffForm');
 const dateInput = $('#dateInput');
 const columns = $('#columns');
 
@@ -74,6 +75,7 @@ function showApp() {
 function renderCurrentUser() {
   const label = state.user?.name || state.user?.username || 'Сотрудник';
   $('#currentUser').textContent = label;
+  $('#staffPanel').classList.toggle('hidden', state.user?.role !== 'admin');
 }
 
 function formPayload() {
@@ -227,6 +229,48 @@ async function loadDashboard() {
   }
   const data = await api(`/api/dashboard?date=${state.date}`);
   renderDashboard(data);
+  if (state.user?.role === 'admin') loadStaff().catch((e) => ($('#staffError').textContent = e.message));
+}
+
+function editStaff(staff) {
+  staffForm.elements.username.value = staff.username;
+  staffForm.elements.name.value = staff.name || staff.username;
+  staffForm.elements.role.value = staff.role || 'staff';
+  staffForm.elements.password.value = '';
+  $('#staffError').textContent = '';
+}
+
+async function removeStaff(username) {
+  if (!confirm(`Удалить сотрудника ${username}?`)) return;
+  await api(`/api/staff/${encodeURIComponent(username)}`, { method: 'DELETE' });
+  await loadStaff();
+}
+
+function renderStaff(staff) {
+  const list = $('#staffList');
+  list.innerHTML = '';
+  for (const item of staff) {
+    const row = document.createElement('div');
+    row.className = 'staff-row';
+    row.innerHTML = `
+      <div>
+        <strong>${escapeHtml(item.name || item.username)}</strong>
+        <span>${escapeHtml(item.username)} · ${item.role === 'admin' ? 'Админ' : 'Сотрудник'}</span>
+      </div>
+      <div class="staff-actions">
+        <button class="ghost small" data-action="edit">Изменить</button>
+        <button class="danger small" data-action="delete">Удалить</button>
+      </div>
+    `;
+    row.querySelector('[data-action="edit"]').addEventListener('click', () => editStaff(item));
+    row.querySelector('[data-action="delete"]').addEventListener('click', () => removeStaff(item.username).catch((e) => ($('#staffError').textContent = e.message)));
+    list.append(row);
+  }
+}
+
+async function loadStaff() {
+  const data = await api('/api/staff');
+  renderStaff(data.staff || []);
 }
 
 function shiftDay(delta) {
@@ -268,6 +312,25 @@ bookingForm.addEventListener('submit', async (event) => {
     await loadDashboard();
   } catch (e) {
     $('#formError').textContent = e.message;
+  }
+});
+
+staffForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('#staffError').textContent = '';
+  const fd = new FormData(staffForm);
+  const payload = {
+    username: fd.get('username'),
+    name: fd.get('name'),
+    password: fd.get('password'),
+    role: fd.get('role'),
+  };
+  try {
+    await api('/api/staff', { method: 'POST', body: JSON.stringify(payload) });
+    staffForm.reset();
+    await loadStaff();
+  } catch (e) {
+    $('#staffError').textContent = e.message;
   }
 });
 

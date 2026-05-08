@@ -12,13 +12,18 @@ import { getPrice } from './pricing.js';
 import {
   analyzeOverlapForSlot,
   getAllClientsForExport,
+  getStaffAccount,
   isBookedStatus,
+  listStaffAccounts,
   openDb,
+  refreshDb,
+  deleteStaffAccount,
   setBookingStatus,
   sourceLabel,
   updateBooking,
   upsertUserPhone,
   insertBooking,
+  upsertStaffAccount,
 } from './db.js';
 import { validateBookingFitsClosing } from './utils/time.js';
 
@@ -42,7 +47,7 @@ process.env.DB_PATH ||= path.join(projectRoot, 'data', 'store.json');
 const db = openDb();
 const port = Number(process.env.ADMIN_PORT || 3000);
 const sessionSecret = process.env.ADMIN_SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-const adminUsers = parseAdminUsers();
+seedStaffAccounts();
 
 function loadEnvFile() {
   const envPath = path.join(projectRoot, '.env');
@@ -86,7 +91,7 @@ function readBody(req) {
   });
 }
 
-function parseAdminUsers() {
+function parseEnvAdminUsers() {
   const raw = process.env.ADMIN_USERS?.trim();
   const fallbackUser = process.env.ADMIN_USER || 'admin';
   const fallbackPassword = process.env.ADMIN_PASSWORD || 'cezar2026';
@@ -110,6 +115,38 @@ function parseAdminUsers() {
       return username && password ? { username, password, name, role } : null;
     })
     .filter(Boolean);
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('base64url');
+  const iterations = 120000;
+  const hash = crypto.pbkdf2Sync(String(password), salt, iterations, 32, 'sha256').toString('base64url');
+  return `pbkdf2$${iterations}$${salt}$${hash}`;
+}
+
+function verifyPassword(password, stored) {
+  const [kind, iterationsRaw, salt, expected] = String(stored || '').split('$');
+  if (kind !== 'pbkdf2' || !iterationsRaw || !salt || !expected) return false;
+  const iterations = Number(iterationsRaw);
+  const actual = crypto.pbkdf2Sync(String(password), salt, iterations, 32, 'sha256').toString('base64url');
+  return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+}
+
+function seedStaffAccounts() {
+  if (listStaffAccounts(db, { includeDisabled: true }).length) return;
+  for (const user of parseEnvAdminUsers()) {
+    upsertStaffAccount(db, {
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      password_hash: hashPassword(user.password),
+    });
+  }
+}
+
+function findActiveStaff(username) {
+  const staff = getStaffAccount(db, username);
+  return staff && !staff.disabled ? staff : null;
 }
 
 function publicUser(user) {
@@ -144,7 +181,7 @@ function sessionUser(req) {
   try {
     const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (!parsed.user || Number(parsed.exp || 0) < Date.now()) return null;
-    return adminUsers.find((user) => user.username === parsed.user) || null;
+    return findActiveStaff(parsed.user);
   } catch {
     return null;
   }
@@ -201,6 +238,7 @@ function bookingView(booking) {
 }
 
 function listBookings(date) {
+  refreshDb(db);
   const { start, end } = localDateRange(date);
   return db.bookings
     .filter((b) => b.start_datetime >= start && b.start_datetime < end)
@@ -272,6 +310,7 @@ function createManualBooking(payload, actor) {
 }
 
 function updateExistingBooking(id, payload, actor) {
+  refreshDb(db);
   const existing = db.bookings.find((b) => Number(b.id) === Number(id));
   if (!existing || !isBookedStatus(existing.status)) return { ok: false, error: 'Бронь не найдена.' };
   const valid = validateBookingPayload(payload, id);
@@ -313,11 +352,46 @@ function dashboard(date) {
   };
 }
 
+function saveStaffFromRequest(payload, actor) {
+  const username = String(payload.username || '').trim();
+  const name = String(payload.name || username).trim();
+  const role = payload.role === 'admin' ? 'admin' : 'staff';
+  const password = String(payload.password || '');
+  if (!username || !/^[a-zA-Z0-9._-]{3,32}$/.test(username)) {
+    return { ok: false, error: 'Логин должен быть 3-32 символа: латиница, цифры, точка, дефис или нижнее подчеркивание.' };
+  }
+  const existing = getStaffAccount(db, username);
+  if (!existing && password.length < 4) return { ok: false, error: 'Укажите пароль минимум 4 символа.' };
+  if (existing && existing.username === actor.username && role !== 'admin') {
+    return { ok: false, error: 'Нельзя снять роль администратора у самого себя.' };
+  }
+  const result = upsertStaffAccount(db, {
+    username,
+    name,
+    role,
+    password_hash: password ? hashPassword(password) : undefined,
+  });
+  if (!result.ok) return { ok: false, error: 'Не удалось сохранить сотрудника.' };
+  return { ok: true, staff: publicUser(result.row) };
+}
+
+function removeStaffFromRequest(username, actor) {
+  const target = getStaffAccount(db, username);
+  if (!target) return { ok: false, error: 'Сотрудник не найден.' };
+  if (target.username === actor.username) return { ok: false, error: 'Нельзя удалить самого себя.' };
+  const activeAdmins = listStaffAccounts(db).filter((staff) => staff.role === 'admin');
+  if (target.role === 'admin' && activeAdmins.length <= 1) {
+    return { ok: false, error: 'Нельзя удалить последнего администратора.' };
+  }
+  const result = deleteStaffAccount(db, username);
+  return result.ok ? { ok: true } : { ok: false, error: 'Не удалось удалить сотрудника.' };
+}
+
 async function handleApi(req, res, pathname) {
   if (pathname === '/api/login' && req.method === 'POST') {
     const body = await readBody(req);
-    const user = adminUsers.find((x) => x.username === body.user && x.password === body.password);
-    if (user) {
+    const user = findActiveStaff(String(body.user || '').trim());
+    if (user && verifyPassword(body.password, user.password_hash)) {
       setAuthCookie(res, user);
       return json(res, 200, { ok: true, user: publicUser(user) });
     }
@@ -332,6 +406,19 @@ async function handleApi(req, res, pathname) {
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (pathname === '/api/me') return json(res, 200, { ok: true, user: publicUser(actor) });
+  if (pathname === '/api/staff' && req.method === 'GET') {
+    if (actor.role !== 'admin') return json(res, 403, { ok: false, error: 'Недостаточно прав.' });
+    return json(res, 200, { ok: true, staff: listStaffAccounts(db).map(publicUser) });
+  }
+  if (pathname === '/api/staff' && req.method === 'POST') {
+    if (actor.role !== 'admin') return json(res, 403, { ok: false, error: 'Недостаточно прав.' });
+    return json(res, 200, saveStaffFromRequest(await readBody(req), actor));
+  }
+  const staffMatch = pathname.match(/^\/api\/staff\/([^/]+)$/);
+  if (staffMatch && req.method === 'DELETE') {
+    if (actor.role !== 'admin') return json(res, 403, { ok: false, error: 'Недостаточно прав.' });
+    return json(res, 200, removeStaffFromRequest(decodeURIComponent(staffMatch[1]), actor));
+  }
   if (pathname === '/api/dashboard') return json(res, 200, dashboard(url.searchParams.get('date') || dayjs().tz(TZ).format('YYYY-MM-DD')));
   if (pathname === '/api/bookings' && req.method === 'POST') return json(res, 200, createManualBooking(await readBody(req), actor));
   const bookingMatch = pathname.match(/^\/api\/bookings\/(\d+)$/);

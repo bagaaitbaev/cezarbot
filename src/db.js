@@ -4,19 +4,88 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const defaultPath = path.join(__dirname, '..', 'data', 'store.json');
+const dbMeta = new WeakMap();
 
 function resolvePath() {
   return process.env.DB_PATH || defaultPath;
 }
 
 function emptyStore() {
-  return { version: 1, users: {}, bookings: [], nextBookingId: 1, promo_codes: [], pending_registrations: [] };
+  return {
+    version: 1,
+    users: {},
+    bookings: [],
+    nextBookingId: 1,
+    promo_codes: [],
+    pending_registrations: [],
+    admin_staff: [],
+  };
+}
+
+function normalizeStore(db) {
+  if (!db || typeof db !== 'object') db = emptyStore();
+  if (!db.users || typeof db.users !== 'object') db.users = {};
+  if (!Array.isArray(db.bookings)) db.bookings = [];
+  if (typeof db.nextBookingId !== 'number' || db.nextBookingId < 1) db.nextBookingId = 1;
+  if (!Array.isArray(db.promo_codes)) db.promo_codes = [];
+  if (!Array.isArray(db.pending_registrations)) db.pending_registrations = [];
+  if (!Array.isArray(db.admin_staff)) db.admin_staff = [];
+  return db;
+}
+
+function replaceStore(target, source) {
+  for (const key of Object.keys(target)) {
+    if (!(key in source)) delete target[key];
+  }
+  Object.assign(target, source);
+}
+
+function readStoreFile(p) {
+  if (!fs.existsSync(p)) return emptyStore();
+  try {
+    return normalizeStore(JSON.parse(fs.readFileSync(p, 'utf8')));
+  } catch {
+    return null;
+  }
+}
+
+function trackDb(db, p) {
+  let stat = null;
+  try {
+    stat = fs.statSync(p);
+  } catch {}
+  dbMeta.set(db, {
+    path: p,
+    mtimeMs: stat?.mtimeMs ?? 0,
+    size: stat?.size ?? 0,
+  });
+}
+
+export function refreshDb(db) {
+  const p = resolvePath();
+  const meta = dbMeta.get(db);
+  if (!meta) return db;
+  let stat = null;
+  try {
+    stat = fs.statSync(p);
+  } catch {}
+  const mtimeMs = stat?.mtimeMs ?? 0;
+  const size = stat?.size ?? 0;
+  if (meta && meta.path === p && meta.mtimeMs === mtimeMs && meta.size === size) return db;
+  const latest = readStoreFile(p);
+  if (!latest) return db;
+  replaceStore(db, latest);
+  dbMeta.set(db, { path: p, mtimeMs, size });
+  return db;
 }
 
 function persist(db) {
   const p = resolvePath();
   fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify(db, null, 2), 'utf8');
+  const tmp = `${p}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(db, null, 2), 'utf8');
+  fs.renameSync(tmp, p);
+  trackDb(db, p);
   exportCsvFiles(db);
 }
 
@@ -136,26 +205,64 @@ export function isBookedStatus(status) {
 /** JSON-файл как база данных */
 export function openDb() {
   const p = resolvePath();
-  let db;
-  if (fs.existsSync(p)) {
-    try {
-      db = JSON.parse(fs.readFileSync(p, 'utf8'));
-    } catch {
-      db = emptyStore();
-    }
-  } else {
-    db = emptyStore();
-  }
-  if (!db.users || typeof db.users !== 'object') db.users = {};
-  if (!Array.isArray(db.bookings)) db.bookings = [];
-  if (typeof db.nextBookingId !== 'number' || db.nextBookingId < 1) db.nextBookingId = 1;
-  if (!Array.isArray(db.promo_codes)) db.promo_codes = [];
-  if (!Array.isArray(db.pending_registrations)) db.pending_registrations = [];
+  const db = readStoreFile(p) || emptyStore();
+  trackDb(db, p);
   persist(db);
   return db;
 }
 
+export function listStaffAccounts(db, { includeDisabled = false } = {}) {
+  refreshDb(db);
+  return (db.admin_staff || [])
+    .filter((staff) => includeDisabled || !staff.disabled)
+    .sort((a, b) => String(a.name || a.username).localeCompare(String(b.name || b.username), 'ru'));
+}
+
+export function getStaffAccount(db, username) {
+  refreshDb(db);
+  return (db.admin_staff || []).find((staff) => staff.username === username) || null;
+}
+
+export function upsertStaffAccount(db, staff) {
+  refreshDb(db);
+  const username = String(staff.username || '').trim();
+  if (!username) return { ok: false, reason: 'empty_username' };
+  const now = new Date().toISOString();
+  const existing = getStaffAccount(db, username);
+  if (existing) {
+    existing.name = String(staff.name || existing.name || username).trim();
+    existing.role = staff.role === 'admin' ? 'admin' : 'staff';
+    existing.disabled = staff.disabled === true;
+    if (staff.password_hash) existing.password_hash = staff.password_hash;
+    existing.updated_at = now;
+    persist(db);
+    return { ok: true, row: existing };
+  }
+  const row = {
+    username,
+    name: String(staff.name || username).trim(),
+    role: staff.role === 'admin' ? 'admin' : 'staff',
+    password_hash: staff.password_hash || '',
+    disabled: false,
+    created_at: now,
+    updated_at: now,
+  };
+  db.admin_staff.push(row);
+  persist(db);
+  return { ok: true, row };
+}
+
+export function deleteStaffAccount(db, username) {
+  refreshDb(db);
+  const idx = (db.admin_staff || []).findIndex((staff) => staff.username === username);
+  if (idx === -1) return { ok: false, reason: 'not_found' };
+  const [row] = db.admin_staff.splice(idx, 1);
+  persist(db);
+  return { ok: true, row };
+}
+
 export function upsertUserPhone(db, userId, telegramName, phone, options = {}) {
+  refreshDb(db);
   const existing = db.users[String(userId)] ?? {};
   const cleanPhone = phone == null ? '' : String(phone).trim();
   db.users[String(userId)] = {
@@ -170,6 +277,7 @@ export function upsertUserPhone(db, userId, telegramName, phone, options = {}) {
 }
 
 export function upsertUserLang(db, userId, lang) {
+  refreshDb(db);
   const existing = db.users[String(userId)] ?? {};
   db.users[String(userId)] = {
     ...existing,
@@ -181,6 +289,7 @@ export function upsertUserLang(db, userId, lang) {
 }
 
 export function getUser(db, userId) {
+  refreshDb(db);
   return db.users[String(userId)] ?? null;
 }
 
@@ -201,6 +310,7 @@ export function insertBooking(
     createdByName = '',
   },
 ) {
+  refreshDb(db);
   const id = db.nextBookingId++;
   const booking = {
     id,
@@ -228,6 +338,7 @@ export function insertBooking(
 }
 
 export function updateBooking(db, bookingId, patch) {
+  refreshDb(db);
   const booking = db.bookings.find((x) => Number(x.id) === Number(bookingId));
   if (!booking) return { ok: false, reason: 'not_found' };
   Object.assign(booking, patch, { updated_at: new Date().toISOString() });
@@ -236,6 +347,7 @@ export function updateBooking(db, bookingId, patch) {
 }
 
 export function setBookingStatus(db, bookingId, status, metadata = {}) {
+  refreshDb(db);
   const booking = db.bookings.find((x) => Number(x.id) === Number(bookingId));
   if (!booking) return { ok: false, reason: 'not_found' };
   booking.status = status;
@@ -247,6 +359,7 @@ export function setBookingStatus(db, bookingId, status, metadata = {}) {
 }
 
 export function setUserPromoPending(db, userId, promoCode) {
+  refreshDb(db);
   const existing = db.users[String(userId)] ?? {};
   db.users[String(userId)] = {
     ...existing,
@@ -269,6 +382,7 @@ function normalizePromoCode(code) {
 }
 
 export function findPromoCode(db, code) {
+  refreshDb(db);
   const c = normalizePromoCode(code);
   if (!c) return null;
   return db.promo_codes.find((p) => String(p.code).toUpperCase() === c) ?? null;
@@ -285,6 +399,7 @@ export function validatePromoCode(db, code) {
 }
 
 export function createPromoCode(db, code, createdBy) {
+  refreshDb(db);
   const c = normalizePromoCode(code);
   if (!c) return { ok: false, reason: 'empty' };
   if (findPromoCode(db, c)) return { ok: false, reason: 'exists' };
@@ -302,6 +417,7 @@ export function createPromoCode(db, code, createdBy) {
 }
 
 export function listActivePromoCodes(db, limit = 50) {
+  refreshDb(db);
   return db.promo_codes
     .filter((p) => !p.disabled && !p.used_at)
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -309,6 +425,7 @@ export function listActivePromoCodes(db, limit = 50) {
 }
 
 export function disablePromoCode(db, code) {
+  refreshDb(db);
   const row = findPromoCode(db, code);
   if (!row) return { ok: false, reason: 'not_found' };
   row.disabled = true;
@@ -317,6 +434,7 @@ export function disablePromoCode(db, code) {
 }
 
 export function markPromoUsed(db, code, userId) {
+  refreshDb(db);
   const row = findPromoCode(db, code);
   if (!row) return { ok: false, reason: 'not_found' };
   if (row.disabled) return { ok: false, reason: 'disabled' };
@@ -329,6 +447,7 @@ export function markPromoUsed(db, code, userId) {
 
 /** Расталған броньдар: басталу уақыты [startIso, endIso] аралығында */
 export function listConfirmedBookingsInRange(db, startIso, endIso) {
+  refreshDb(db);
   return db.bookings
     .filter(
       (b) =>
@@ -344,6 +463,7 @@ export function listConfirmedBookingsInRange(db, startIso, endIso) {
  * ең ерте аяқталу уақытын қайтарады (орын толы болғанда кеңес үшін).
  */
 export function analyzeOverlapForSlot(db, zone, startMs, endMs, excludeId = null) {
+  refreshDb(db);
   const rows = db.bookings.filter((b) => b.zone === zone && isBookedStatus(b.status));
   let count = 0;
   let earliestEndMs = null;
@@ -360,6 +480,7 @@ export function analyzeOverlapForSlot(db, zone, startMs, endMs, excludeId = null
 }
 
 export function listUpcomingBookings(db, userId) {
+  refreshDb(db);
   const now = new Date().toISOString();
   return db.bookings
     .filter((b) => b.user_id === userId && isBookedStatus(b.status) && b.start_datetime >= now)
@@ -368,18 +489,21 @@ export function listUpcomingBookings(db, userId) {
 }
 
 export function getLastBooking(db, userId) {
+  refreshDb(db);
   const list = db.bookings.filter((b) => b.user_id === userId && isBookedStatus(b.status));
   if (!list.length) return null;
   return list.sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
 }
 
 export function markReminderSent(db, bookingId) {
+  refreshDb(db);
   const b = db.bookings.find((x) => x.id === bookingId);
   if (b) b.reminder_sent = 1;
   persist(db);
 }
 
 export function getBookingsNeedingReminder(db) {
+  refreshDb(db);
   const now = Date.now();
   const minUntil = 59 * 60 * 1000;
   const maxUntil = 61 * 60 * 1000;
@@ -395,6 +519,7 @@ export function getBookingsNeedingReminder(db) {
 const REVIEW_2GIS_DELAY_MS = 60 * 60 * 1000;
 
 export function getBookingsNeedingReview2gis(db) {
+  refreshDb(db);
   const now = Date.now();
   return db.bookings.filter((b) => {
     if (!isBookedStatus(b.status)) return false;
@@ -407,12 +532,14 @@ export function getBookingsNeedingReview2gis(db) {
 }
 
 export function markReview2gisSent(db, bookingId) {
+  refreshDb(db);
   const b = db.bookings.find((x) => x.id === bookingId);
   if (b) b.review_2gis_sent = 1;
   persist(db);
 }
 
 export function getStatsForPeriod(db, startIso, endIso) {
+  refreshDb(db);
   const bookings = db.bookings.filter(
     (b) =>
       isBookedStatus(b.status) &&
@@ -436,12 +563,14 @@ export function getStatsForPeriod(db, startIso, endIso) {
 }
 
 export function resetBookings(db) {
+  refreshDb(db);
   db.bookings = [];
   db.nextBookingId = 1;
   persist(db);
 }
 
 export function cancelBooking(db, bookingId, userId) {
+  refreshDb(db);
   const b = db.bookings.find((x) => Number(x.id) === Number(bookingId));
   if (!b) return { ok: false, reason: 'not_found' };
   if (String(b.user_id) !== String(userId)) return { ok: false, reason: 'forbidden' };
@@ -457,6 +586,7 @@ export function cancelBooking(db, bookingId, userId) {
 
 /** Уникальные клиенты с агрегированными данными по броням — для экспорта */
 export function getAllClientsForExport(db) {
+  refreshDb(db);
   const booked = db.bookings.filter((b) => isBookedStatus(b.status));
   const map = {};
   for (const b of booked) {
@@ -484,6 +614,7 @@ export function getAllClientsForExport(db) {
 
 /** Все подтверждённые брони с данными клиента — для экспорта */
 export function getAllBookingsForExport(db) {
+  refreshDb(db);
   return db.bookings
     .filter((b) => isBookedStatus(b.status))
     .sort((a, b) => a.start_datetime.localeCompare(b.start_datetime))
@@ -506,6 +637,7 @@ export function getAllBookingsForExport(db) {
 
 /** Сохранить попытку регистрации пользователя */
 export function saveRegistrationAttempt(db, userId, telegramName) {
+  refreshDb(db);
   const existing = db.pending_registrations.find((r) => r.user_id === userId);
   if (existing) {
     existing.updated_at = new Date().toISOString();
@@ -526,6 +658,7 @@ export function saveRegistrationAttempt(db, userId, telegramName) {
 
 /** Завершить регистрацию (переместить в users, удалить из pending) */
 export function completeRegistration(db, userId) {
+  refreshDb(db);
   const idx = db.pending_registrations.findIndex((r) => r.user_id === userId);
   if (idx !== -1) {
     const reg = db.pending_registrations[idx];
@@ -538,11 +671,13 @@ export function completeRegistration(db, userId) {
 
 /** Получить список всех попыток регистрации (завершённых и незавершённых) */
 export function getPendingRegistrations(db) {
+  refreshDb(db);
   return db.pending_registrations.sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 /** Получить список незавершённых регистраций */
 export function getIncompleteRegistrations(db) {
+  refreshDb(db);
   return db.pending_registrations
     .filter((r) => r.status === 'pending')
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));

@@ -27,6 +27,7 @@ import {
   listActivePromoCodes,
   markPromoUsed,
   resetBookings,
+  refreshDb,
   saveRegistrationAttempt,
   setUserPromoPending,
   validatePromoCode,
@@ -513,6 +514,7 @@ export function createBot(db) {
       await ctx.reply(t(lang, 'operator_only_short'));
       return;
     }
+    refreshDb(db);
     const users = Object.values(db.users).sort((a, b) =>
       b.updated_at.localeCompare(a.updated_at)
     );
