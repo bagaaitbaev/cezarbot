@@ -3,6 +3,7 @@ const SOUND_STORAGE_KEY = 'cezarSoundEnabled';
 
 function todayLocal() {
   const d = new Date();
+  if (d.getHours() < 3) d.setDate(d.getDate() - 1);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -51,7 +52,7 @@ const SEATS_BY_ZONE = {
   vip: [9, 10],
 };
 
-const TIME_OPTIONS = ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00'];
+const TIME_OPTIONS = ['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00'];
 
 function money(value) {
   return `${new Intl.NumberFormat('ru-RU').format(Number(value || 0))} ₸`;
@@ -65,11 +66,12 @@ function escapeHtml(value) {
 }
 
 function dayLabel(date) {
-  return new Intl.DateTimeFormat('ru-RU', {
+  const label = new Intl.DateTimeFormat('ru-RU', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   }).format(new Date(`${date}T12:00:00`));
+  return `Смена ${label}`;
 }
 
 function minutesSince(iso) {

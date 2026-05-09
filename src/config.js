@@ -39,7 +39,6 @@ export const QUICK_HOURS = [
   '00:00',
   '01:00',
   '02:00',
-  '03:00',
 ];
 
 /**
@@ -48,4 +47,3 @@ export const QUICK_HOURS = [
  */
 export const OPEN_TIME = '15:00';
 export const CLOSE_TIME = '03:00';
-

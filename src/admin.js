@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat.js';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
-import { ZONE_CAPACITY, ZONES } from './config.js';
+import { CLOSE_TIME, OPEN_TIME, ZONE_CAPACITY, ZONES } from './config.js';
 import { getPrice } from './pricing.js';
 import {
   analyzeOverlapForSlot,
@@ -226,17 +226,60 @@ function normalizeTimeInput(value) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+function timeToMinutes(hhmm) {
+  const match = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function shiftRange(date) {
+  const open = timeToMinutes(OPEN_TIME) ?? 0;
+  const close = timeToMinutes(CLOSE_TIME) ?? 24 * 60;
+  const d = dayjs.tz(date, 'YYYY-MM-DD', TZ);
+  if (open > close) {
+    return {
+      start: d.hour(Math.floor(open / 60)).minute(open % 60).second(0).millisecond(0),
+      end: d.add(1, 'day').hour(Math.floor(close / 60)).minute(close % 60).second(0).millisecond(0),
+    };
+  }
+  return {
+    start: d.hour(Math.floor(open / 60)).minute(open % 60).second(0).millisecond(0),
+    end: d.hour(Math.floor(close / 60)).minute(close % 60).second(0).millisecond(0),
+  };
+}
+
+function shiftDateForStart(startTz) {
+  const open = timeToMinutes(OPEN_TIME);
+  const close = timeToMinutes(CLOSE_TIME);
+  const startM = startTz.hour() * 60 + startTz.minute();
+  if (open != null && close != null && open > close && startM < close) {
+    return startTz.subtract(1, 'day').format('YYYY-MM-DD');
+  }
+  return startTz.format('YYYY-MM-DD');
+}
+
+function currentShiftDate() {
+  return shiftDateForStart(dayjs().tz(TZ));
+}
+
 function localIso(date, time) {
   const normalizedTime = normalizeTimeInput(time);
   if (!normalizedTime) return null;
-  const parsed = dayjs.tz(`${date} ${normalizedTime}`, 'YYYY-MM-DD HH:mm', TZ);
+  const open = timeToMinutes(OPEN_TIME);
+  const close = timeToMinutes(CLOSE_TIME);
+  const startM = timeToMinutes(normalizedTime);
+  const bookingDate =
+    open != null && close != null && startM != null && open > close && startM < close
+      ? dayjs.tz(date, 'YYYY-MM-DD', TZ).add(1, 'day').format('YYYY-MM-DD')
+      : date;
+  const parsed = dayjs.tz(`${bookingDate} ${normalizedTime}`, 'YYYY-MM-DD HH:mm', TZ);
   if (!parsed.isValid()) return null;
   return parsed.second(0).millisecond(0).toISOString();
 }
 
 function localDateRange(date) {
-  const d = dayjs.tz(date, 'YYYY-MM-DD', TZ);
-  return { start: d.startOf('day').toISOString(), end: d.add(1, 'day').startOf('day').toISOString() };
+  const range = shiftRange(date);
+  return { start: range.start.toISOString(), end: range.end.toISOString() };
 }
 
 function bookingView(booking) {
@@ -250,7 +293,7 @@ function bookingView(booking) {
     zone: booking.zone,
     zoneLabel: ZONES[booking.zone]?.label || booking.zone,
     seat: booking.seat || '',
-    date: start.format('YYYY-MM-DD'),
+    date: shiftDateForStart(start),
     time: start.format('HH:mm'),
     startDatetime: booking.start_datetime,
     durationMinutes: booking.duration_minutes,
@@ -551,7 +594,7 @@ async function handleApi(req, res, pathname) {
     if (actor.role !== 'admin') return json(res, 403, { ok: false, error: 'Недостаточно прав.' });
     return json(res, 200, removeStaffFromRequest(decodeURIComponent(staffMatch[1]), actor));
   }
-  if (pathname === '/api/dashboard') return json(res, 200, dashboard(url.searchParams.get('date') || dayjs().tz(TZ).format('YYYY-MM-DD')));
+  if (pathname === '/api/dashboard') return json(res, 200, dashboard(url.searchParams.get('date') || currentShiftDate()));
   if (pathname === '/api/bookings' && req.method === 'POST') return json(res, 200, createManualBooking(await readBody(req), actor));
   const bookingArrivalMatch = pathname.match(/^\/api\/bookings\/(\d+)\/arrival$/);
   if (bookingArrivalMatch && req.method === 'POST') return json(res, 200, confirmBookingArrival(bookingArrivalMatch[1], actor));

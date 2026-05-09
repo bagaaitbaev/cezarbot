@@ -39,8 +39,8 @@ function timeToMinutes(hhmm) {
 
 function isStartMinuteInBusinessWindow(startM, openM, closeM) {
   if (openM == null || closeM == null) return true;
-  if (openM <= closeM) return startM >= openM && startM <= closeM;
-  return startM >= openM || startM <= closeM;
+  if (openM <= closeM) return startM >= openM && startM < closeM;
+  return startM >= openM || startM < closeM;
 }
 
 /**

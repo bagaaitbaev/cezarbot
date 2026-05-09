@@ -44,6 +44,7 @@ describe('resolveBookingDateTime', () => {
   it('rejects time outside 15:00–03:00 window', () => {
     const now = new Date('2026-03-28T16:00:00+05:00');
     expect(resolveBookingDateTime('14:00', 'ru', now).ok).toBe(false);
+    expect(resolveBookingDateTime('03:00', 'ru', now).ok).toBe(false);
     expect(resolveBookingDateTime('04:00', 'ru', now).ok).toBe(false);
   });
 });
@@ -61,9 +62,17 @@ describe('validateBookingFitsClosing', () => {
     const start = '2026-03-28T19:00:00.000Z';
     expect(validateBookingFitsClosing(start, 180).ok).toBe(true);
   });
+  it('allows 1h from 02:00 until 03:00 close', () => {
+    const start = '2026-03-28T21:00:00.000Z';
+    expect(validateBookingFitsClosing(start, 60).ok).toBe(true);
+  });
   it('rejects 1h from 02:30 (ends after 03:00)', () => {
     const start = '2026-03-28T21:30:00.000Z';
     expect(validateBookingFitsClosing(start, 60).ok).toBe(false);
+  });
+  it('rejects 3h from 01:00 after midnight', () => {
+    const start = '2026-03-28T20:00:00.000Z';
+    expect(validateBookingFitsClosing(start, 180).ok).toBe(false);
   });
 });
 
