@@ -369,6 +369,7 @@ export function setBookingStatus(db, bookingId, status, metadata = {}) {
   booking.updated_at = new Date().toISOString();
   Object.assign(booking, metadata);
   if (status === 'cancelled') booking.cancelled_at = booking.updated_at;
+  if (status === 'completed') booking.completed_at = booking.updated_at;
   persist(db);
   return { ok: true, booking };
 }

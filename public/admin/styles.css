@@ -626,6 +626,11 @@ label {
   border-left-color: rgba(142, 142, 147, 0.58);
   background: var(--cancelled-card);
 }
+.booking-card[data-status="completed"] {
+  opacity: 0.82;
+  border-left-color: var(--success-text);
+  background: var(--cancelled-card);
+}
 .booking-card[data-arrived="true"] {
   border-color: var(--line);
   border-left-color: var(--success-text);
@@ -788,6 +793,10 @@ label {
   background: var(--warning-soft);
   color: var(--warning-text);
 }
+.complete {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
 .danger {
   background: var(--danger-soft);
   color: var(--danger);
@@ -798,8 +807,13 @@ label {
   padding: 24px 6px;
   text-align: center;
 }
-.cancelled-bookings {
+.archive-bookings {
   margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.cancelled-bookings {
   border-top: 1px solid var(--line);
   padding-top: 16px;
 }
@@ -831,6 +845,9 @@ label {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+.archive-bookings .cancelled-list {
+  grid-template-columns: 1fr;
 }
 .cancelled-list .booking-card {
   margin-bottom: 0;
@@ -913,6 +930,7 @@ label {
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .panel { position: static; }
   .columns { grid-template-columns: 1fr; }
+  .archive-bookings { grid-template-columns: 1fr; }
   .cancelled-list { grid-template-columns: 1fr; }
 }
 

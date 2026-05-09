@@ -31,6 +31,8 @@ const bookingForm = $('#bookingForm');
 const staffForm = $('#staffForm');
 const dateInput = $('#dateInput');
 const columns = $('#columns');
+const archiveBookings = $('.archive-bookings');
+const completedBookings = $('#completedBookings');
 const cancelledBookings = $('#cancelledBookings');
 const timeTrigger = $('#timeTrigger');
 const timePicker = $('#timePicker');
@@ -425,6 +427,16 @@ async function closeSession(id) {
   await loadDashboard();
 }
 
+async function completeBooking(id) {
+  if (!confirm(`Завершить бронь #${id}?`)) return;
+  await api(`/api/bookings/${id}/complete`, { method: 'POST' });
+  await loadDashboard();
+}
+
+function isActiveBooking(booking) {
+  return booking.status === 'booked' || booking.status === 'confirmed';
+}
+
 function sourceClass(source) {
   if (source === 'Telegram') return 'telegram';
   if (source === 'WhatsApp') return 'whatsapp';
@@ -449,7 +461,7 @@ function bookingCard(booking) {
   const zoneLabel = escapeHtml(booking.zoneLabel || booking.zone);
   const seat = booking.seat ? escapeHtml(`Место ${booking.seat}`) : 'Место не выбрано';
   const arrivedBy = escapeHtml(booking.arrivedByName || booking.arrivedBy || 'сотрудник');
-  const isActive = booking.status !== 'cancelled';
+  const isActive = isActiveBooking(booking);
   const isOpenSession = Boolean(booking.openSessionStartedAt && !booking.openSessionClosedAt);
   const isOverdueOpenSession = isOpenSession && new Date(booking.endDatetime).getTime() <= Date.now();
   card.dataset.overdue = isOverdueOpenSession ? 'true' : 'false';
@@ -465,6 +477,15 @@ function bookingCard(booking) {
     }
     return '';
   })();
+  const actionButtons = [
+    isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Пришел</button>' : '',
+    isActive && !booking.openSessionClosedAt
+      ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Открыть'}</button>`
+      : '',
+    isActive ? '<button class="ghost small" data-action="edit">Изменить</button>' : '',
+    isActive ? '<button class="complete small" data-action="complete">Завершить</button>' : '',
+    isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : '',
+  ].join('');
   card.innerHTML = `
     <div class="booking-summary">
       <div class="booking-summary-line">
@@ -484,12 +505,7 @@ function bookingCard(booking) {
         </div>
         <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
         ${note ? `<div class="booking-client">${note}</div>` : ''}
-        <div class="booking-actions">
-          ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Пришел</button>' : ''}
-          ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Открыть'}</button>` : ''}
-          <button class="ghost small" data-action="edit">Изменить</button>
-          ${isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
-        </div>
+        ${actionButtons ? `<div class="booking-actions">${actionButtons}</div>` : ''}
       </div>
     </div>
   `;
@@ -513,6 +529,11 @@ function bookingCard(booking) {
     if (action === 'edit') {
       event.stopPropagation();
       editBooking(booking);
+      return;
+    }
+    if (action === 'complete') {
+      event.stopPropagation();
+      completeBooking(booking.id).catch((e) => ($('#formError').textContent = e.message));
       return;
     }
     if (action === 'cancel') {
@@ -544,29 +565,29 @@ function remindOpenSessions(bookings) {
   setTimeout(() => updateLiveStatus('Онлайн'), 6000);
 }
 
-function renderCancelledBookings(bookings) {
-  cancelledBookings.innerHTML = '';
+function renderArchiveBookings(container, bookings, title) {
+  container.innerHTML = '';
   if (!bookings.length) {
-    cancelledBookings.classList.add('hidden');
+    container.classList.add('hidden');
     return;
   }
-  cancelledBookings.classList.remove('hidden');
-  cancelledBookings.innerHTML = `
+  container.classList.remove('hidden');
+  container.innerHTML = `
     <div class="cancelled-head">
-      <h3>Отмененные брони</h3>
+      <h3>${escapeHtml(title)}</h3>
       <span>${bookings.length}</span>
     </div>
     <div class="cancelled-list"></div>
   `;
-  const list = cancelledBookings.querySelector('.cancelled-list');
+  const list = container.querySelector('.cancelled-list');
   bookings.forEach((booking) => list.append(bookingCard(booking)));
 }
 
 function renderDashboard(data, { notify = false } = {}) {
-  const activeIds = new Set(data.bookings.filter((b) => b.status !== 'cancelled').map((b) => Number(b.id)));
+  const activeIds = new Set(data.bookings.filter(isActiveBooking).map((b) => Number(b.id)));
   const newBookings =
     notify && state.hasDashboardSnapshot
-      ? data.bookings.filter((b) => b.status !== 'cancelled' && !state.knownBookingIds.has(Number(b.id)))
+      ? data.bookings.filter((b) => isActiveBooking(b) && !state.knownBookingIds.has(Number(b.id)))
       : [];
 
   state.dashboard = data;
@@ -581,12 +602,14 @@ function renderDashboard(data, { notify = false } = {}) {
   $('#statOpenSessions').textContent = data.stats.openSessions || 0;
   $('#statStaff').textContent = data.stats.staff;
   columns.innerHTML = '';
+  const completedRows = data.bookings.filter((b) => b.status === 'completed');
   const cancelledRows = data.bookings.filter((b) => b.status === 'cancelled');
+  archiveBookings.classList.toggle('hidden', !completedRows.length && !cancelledRows.length);
 
   for (const zone of ['zal', 'cabinet', 'vip']) {
     const column = document.createElement('section');
     column.className = 'zone-column';
-    const rows = data.bookings.filter((b) => b.zone === zone && b.status !== 'cancelled');
+    const rows = data.bookings.filter((b) => b.zone === zone && isActiveBooking(b));
     const activeCount = rows.length;
     column.innerHTML = `
       <div class="zone-title">
@@ -603,10 +626,11 @@ function renderDashboard(data, { notify = false } = {}) {
     rows.forEach((booking) => column.append(bookingCard(booking)));
     columns.append(column);
   }
-  renderCancelledBookings(cancelledRows);
+  renderArchiveBookings(completedBookings, completedRows, 'Завершенные брони');
+  renderArchiveBookings(cancelledBookings, cancelledRows, 'Отмененные брони');
 
   notifyNewBookings(newBookings);
-  remindOpenSessions(data.bookings);
+  remindOpenSessions(data.bookings.filter(isActiveBooking));
 }
 
 async function loadDashboard({ notify = false, refreshStaff = false } = {}) {

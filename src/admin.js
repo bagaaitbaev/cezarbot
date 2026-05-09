@@ -267,6 +267,9 @@ function bookingView(booking) {
     updatedByName: booking.updated_by_name || '',
     cancelledBy: booking.cancelled_by || '',
     cancelledByName: booking.cancelled_by_name || '',
+    completedAt: booking.completed_at || '',
+    completedBy: booking.completed_by || '',
+    completedByName: booking.completed_by_name || '',
     arrivedAt: booking.arrived_at || '',
     arrivedBy: booking.arrived_by || '',
     arrivedByName: booking.arrived_by_name || '',
@@ -423,6 +426,29 @@ function closeBookingSession(id, actor) {
   return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось закрыть сессию.' };
 }
 
+function completeBooking(id, actor) {
+  refreshDb(db);
+  const existing = db.bookings.find((b) => Number(b.id) === Number(id));
+  if (!existing || !isBookedStatus(existing.status)) return { ok: false, error: 'Бронь не найдена.' };
+  const nowIso = new Date().toISOString();
+  const startMs = new Date(existing.start_datetime).getTime();
+  const actualDurationMinutes = Math.max(1, Math.ceil((Date.now() - startMs) / 60_000));
+  const result = setBookingStatus(db, id, 'completed', {
+    completed_by: actor?.username || '',
+    completed_by_name: actor?.name || actor?.username || '',
+    completed_at: nowIso,
+    actual_duration_minutes: actualDurationMinutes,
+    ...(isOpenSession(existing)
+      ? {
+          open_session_closed_at: nowIso,
+          open_session_closed_by: actor?.username || '',
+          open_session_closed_by_name: actor?.name || actor?.username || '',
+        }
+      : {}),
+  });
+  return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось завершить бронь.' };
+}
+
 function dashboard(date) {
   const bookings = listBookings(date);
   const active = bookings.filter((b) => isBookedStatus(b.status));
@@ -517,6 +543,8 @@ async function handleApi(req, res, pathname) {
   if (bookingOpenSessionMatch && req.method === 'POST') return json(res, 200, openBookingSession(bookingOpenSessionMatch[1], actor));
   const bookingCloseSessionMatch = pathname.match(/^\/api\/bookings\/(\d+)\/close-session$/);
   if (bookingCloseSessionMatch && req.method === 'POST') return json(res, 200, closeBookingSession(bookingCloseSessionMatch[1], actor));
+  const bookingCompleteMatch = pathname.match(/^\/api\/bookings\/(\d+)\/complete$/);
+  if (bookingCompleteMatch && req.method === 'POST') return json(res, 200, completeBooking(bookingCompleteMatch[1], actor));
   const bookingMatch = pathname.match(/^\/api\/bookings\/(\d+)$/);
   if (bookingMatch && req.method === 'PATCH') return json(res, 200, updateExistingBooking(bookingMatch[1], await readBody(req), actor));
   if (bookingMatch && req.method === 'DELETE') {
