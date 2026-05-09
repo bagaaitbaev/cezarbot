@@ -154,7 +154,10 @@ function formatPartialPhone(value) {
 
 function formatPhoneInput(value, inputType = '') {
   const digits = String(value || '').replace(/\D/g, '');
-  if (inputType.startsWith('delete') && digits.length <= 1) return '';
+  if (inputType.startsWith('delete')) {
+    if (digits.length <= 1) return '';
+    return cleanPhoneInput(value);
+  }
   return formatPartialPhone(value);
 }
 
