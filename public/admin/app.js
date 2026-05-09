@@ -1,5 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 const SOUND_STORAGE_KEY = 'cezarSoundEnabled';
+const LAST_SEEN_BOOKING_KEY = 'cezarLastSeenBookingId';
 
 function todayLocal() {
   const d = new Date();
@@ -16,6 +17,7 @@ const state = {
   user: null,
   knownBookingIds: new Set(),
   knownGlobalBookingIds: new Set(),
+  lastSeenBookingId: Number(localStorage.getItem(LAST_SEEN_BOOKING_KEY) || 0),
   hasDashboardSnapshot: false,
   hasGlobalBookingSnapshot: false,
   soundEnabled: localStorage.getItem(SOUND_STORAGE_KEY) === 'true',
@@ -249,14 +251,15 @@ function disableSound() {
 }
 
 async function playNotificationSound() {
-  if (!state.soundEnabled) return;
+  if (!state.soundEnabled) return false;
   try {
     ensureNotificationAudio();
     state.notificationAudio.pause();
     state.notificationAudio.currentTime = 0;
     await state.notificationAudio.play();
+    return true;
   } catch {
-    playFallbackTone();
+    return playFallbackTone();
   }
 }
 
@@ -266,7 +269,7 @@ function unlockSoundAfterGesture() {
 }
 
 function playFallbackTone() {
-  if (!state.audioContext) return;
+  if (!state.audioContext || state.audioContext.state === 'suspended') return false;
   const ctx = state.audioContext;
   const now = ctx.currentTime;
   const gain = ctx.createGain();
@@ -288,14 +291,15 @@ function playFallbackTone() {
     osc.start(now + offset);
     osc.stop(now + offset + duration);
   }
+  return true;
 }
 
-function notifyNewBookings(bookings) {
+async function notifyNewBookings(bookings) {
   if (!bookings.length) return;
-  playNotificationSound();
+  const played = await playNotificationSound();
   const latest = bookings[bookings.length - 1];
   const dateText = latest.date && latest.date !== state.date ? ` на ${dayLabel(latest.date)}` : '';
-  updateLiveStatus(`Новая бронь #${latest.id}${dateText}`);
+  updateLiveStatus(played || !state.soundEnabled ? `Новая бронь #${latest.id}${dateText}` : 'Новая бронь. Нажмите на страницу для звука');
   setTimeout(() => updateLiveStatus('Онлайн'), 5000);
 }
 
@@ -614,18 +618,21 @@ function renderArchiveBookings(container, bookings, title) {
   bookings.forEach((booking) => list.append(bookingCard(booking)));
 }
 
-function renderDashboard(data, { notify = false } = {}) {
+async function renderDashboard(data, { notify = false } = {}) {
   const activeIds = new Set(data.bookings.filter(isActiveBooking).map((b) => Number(b.id)));
   const globalBookings = data.recentBookings || data.bookings;
   const globalActiveIds = new Set(globalBookings.filter(isActiveBooking).map((b) => Number(b.id)));
+  const latestGlobalId = Math.max(0, ...globalActiveIds);
   const newBookings =
-    notify && state.hasGlobalBookingSnapshot
-      ? globalBookings.filter((b) => isActiveBooking(b) && !state.knownGlobalBookingIds.has(Number(b.id)))
+    notify
+      ? globalBookings.filter((b) => isActiveBooking(b) && Number(b.id) > state.lastSeenBookingId)
       : [];
 
   state.dashboard = data;
   state.knownBookingIds = activeIds;
   state.knownGlobalBookingIds = globalActiveIds;
+  state.lastSeenBookingId = Math.max(state.lastSeenBookingId, latestGlobalId);
+  localStorage.setItem(LAST_SEEN_BOOKING_KEY, String(state.lastSeenBookingId));
   state.hasDashboardSnapshot = true;
   state.hasGlobalBookingSnapshot = true;
   showApp();
@@ -664,8 +671,9 @@ function renderDashboard(data, { notify = false } = {}) {
   renderArchiveBookings(completedBookings, completedRows, 'Завершенные брони');
   renderArchiveBookings(cancelledBookings, cancelledRows, 'Отмененные брони');
 
-  notifyNewBookings(newBookings);
+  await notifyNewBookings(newBookings);
   remindOpenSessions(data.bookings.filter(isActiveBooking));
+  return newBookings.length;
 }
 
 async function loadDashboard({ notify = false, refreshStaff = false } = {}) {
@@ -674,8 +682,8 @@ async function loadDashboard({ notify = false, refreshStaff = false } = {}) {
     state.user = me.user;
   }
   const data = await api(`/api/dashboard?date=${state.date}`);
-  renderDashboard(data, { notify });
-  updateLiveStatus('Онлайн');
+  const newBookingCount = await renderDashboard(data, { notify });
+  if (!newBookingCount) updateLiveStatus('Онлайн');
   if (refreshStaff && state.user?.role === 'admin') loadStaff().catch((e) => ($('#staffError').textContent = e.message));
 }
 
