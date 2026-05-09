@@ -146,8 +146,8 @@ function formatPartialPhone(value) {
   const digits = String(value || '').replace(/\D/g, '');
   if (!digits) return '';
   if (digits.length > 1 && digits.startsWith('8')) return joinPhoneChunks(`7${digits.slice(1)}`.slice(0, 11));
-  if (digits.length === 10) return joinPhoneChunks(`7${digits}`);
   if (digits.startsWith('7')) return joinPhoneChunks(digits.slice(0, 11));
+  if (digits.length === 10) return joinPhoneChunks(`7${digits}`);
   if (digits.length >= 11) return formatPhone(value);
   return cleanPhoneInput(value);
 }
@@ -156,7 +156,7 @@ function formatPhoneInput(value, inputType = '') {
   const digits = String(value || '').replace(/\D/g, '');
   if (inputType.startsWith('delete')) {
     if (digits.length <= 1) return '';
-    return cleanPhoneInput(value);
+    return formatPartialPhone(value);
   }
   return formatPartialPhone(value);
 }
