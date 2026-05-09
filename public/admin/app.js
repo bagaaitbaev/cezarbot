@@ -478,13 +478,29 @@ function sourceClass(source) {
   return 'staff';
 }
 
+function bookingVisualStatus(booking) {
+  if (booking.status === 'cancelled') return 'cancelled';
+  if (booking.status === 'completed') return 'completed';
+  const now = Date.now();
+  const startMs = new Date(booking.startDatetime).getTime();
+  const endMs = new Date(booking.endDatetime).getTime();
+  const isOpenSession = Boolean(booking.openSessionStartedAt && !booking.openSessionClosedAt);
+  if (isOpenSession) return 'open-session';
+  if (now >= endMs) return 'expired';
+  if (booking.arrivedAt) return 'playing';
+  if (now >= startMs) return 'not-arrived';
+  return 'waiting';
+}
+
 function bookingCard(booking) {
   const card = document.createElement('article');
   card.className = 'booking-card';
   const bookingId = Number(booking.id);
   const isExpanded = state.expandedBookingIds.has(bookingId);
+  const visualStatus = bookingVisualStatus(booking);
   card.dataset.source = booking.source;
   card.dataset.status = booking.status;
+  card.dataset.visualStatus = visualStatus;
   card.dataset.arrived = booking.arrivedAt ? 'true' : 'false';
   card.dataset.openSession = booking.openSessionStartedAt && !booking.openSessionClosedAt ? 'true' : 'false';
   card.dataset.expanded = isExpanded ? 'true' : 'false';

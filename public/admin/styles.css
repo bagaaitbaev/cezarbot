@@ -621,29 +621,67 @@ label {
 }
 .booking-card[data-source="Telegram"] { border-left-color: var(--telegram); }
 .booking-card[data-source="WhatsApp"] { border-left-color: var(--whatsapp); }
-.booking-card[data-status="cancelled"] {
-  opacity: 0.72;
-  border-left-color: rgba(142, 142, 147, 0.58);
-  background: var(--cancelled-card);
+.booking-card[data-visual-status="waiting"] {
+  border-color: rgba(0, 113, 227, 0.18);
+  border-left-color: var(--accent);
+  background:
+    linear-gradient(105deg, rgba(0, 113, 227, 0.12), rgba(0, 113, 227, 0.035) 46%, var(--surface-solid) 100%);
 }
-.booking-card[data-status="completed"] {
-  opacity: 0.82;
+.booking-card[data-visual-status="not-arrived"] {
+  border-color: rgba(10, 132, 255, 0.24);
+  border-left-color: #2aabee;
+  background:
+    linear-gradient(105deg, rgba(42, 171, 238, 0.16), rgba(42, 171, 238, 0.05) 48%, var(--surface-solid) 100%);
+}
+.booking-card[data-visual-status="playing"] {
+  border-color: rgba(37, 211, 102, 0.22);
   border-left-color: var(--success-text);
-  background: var(--cancelled-card);
+  background:
+    linear-gradient(105deg, rgba(37, 211, 102, 0.16), rgba(37, 211, 102, 0.045) 48%, var(--surface-solid) 100%);
 }
-.booking-card[data-arrived="true"] {
-  border-color: var(--line);
-  border-left-color: var(--success-text);
-  background: var(--surface-solid);
-}
-.booking-card[data-open-session="true"] {
-  border-color: var(--line);
+.booking-card[data-visual-status="open-session"] {
+  border-color: rgba(255, 149, 0, 0.24);
   border-left-color: var(--warning-border);
-  background: var(--surface-solid);
+  background:
+    linear-gradient(105deg, rgba(255, 149, 0, 0.18), rgba(255, 149, 0, 0.052) 48%, var(--surface-solid) 100%);
 }
-.booking-card[data-open-session="true"][data-overdue="true"] {
+.booking-card[data-visual-status="expired"] {
   border-color: rgba(215, 0, 21, 0.22);
   border-left-color: var(--danger);
+  background:
+    linear-gradient(105deg, rgba(215, 0, 21, 0.14), rgba(215, 0, 21, 0.045) 48%, var(--surface-solid) 100%);
+}
+.booking-card[data-visual-status="completed"] {
+  opacity: 0.82;
+  border-left-color: rgba(142, 142, 147, 0.72);
+  background:
+    linear-gradient(105deg, rgba(142, 142, 147, 0.12), rgba(142, 142, 147, 0.04) 48%, var(--cancelled-card) 100%);
+}
+.booking-card[data-visual-status="cancelled"] {
+  opacity: 0.72;
+  border-left-color: rgba(142, 142, 147, 0.58);
+  background:
+    linear-gradient(105deg, rgba(142, 142, 147, 0.11), rgba(142, 142, 147, 0.035) 48%, var(--cancelled-card) 100%);
+}
+:root[data-theme="dark"] .booking-card[data-visual-status="waiting"] {
+  background:
+    linear-gradient(105deg, rgba(10, 132, 255, 0.2), rgba(10, 132, 255, 0.075) 48%, var(--surface-solid) 100%);
+}
+:root[data-theme="dark"] .booking-card[data-visual-status="not-arrived"] {
+  background:
+    linear-gradient(105deg, rgba(72, 191, 255, 0.22), rgba(72, 191, 255, 0.08) 48%, var(--surface-solid) 100%);
+}
+:root[data-theme="dark"] .booking-card[data-visual-status="playing"] {
+  background:
+    linear-gradient(105deg, rgba(48, 215, 104, 0.2), rgba(48, 215, 104, 0.075) 48%, var(--surface-solid) 100%);
+}
+:root[data-theme="dark"] .booking-card[data-visual-status="open-session"] {
+  background:
+    linear-gradient(105deg, rgba(255, 159, 10, 0.23), rgba(255, 159, 10, 0.085) 48%, var(--surface-solid) 100%);
+}
+:root[data-theme="dark"] .booking-card[data-visual-status="expired"] {
+  background:
+    linear-gradient(105deg, rgba(255, 69, 58, 0.22), rgba(255, 69, 58, 0.075) 48%, var(--surface-solid) 100%);
 }
 .booking-summary {
   min-height: 52px;
