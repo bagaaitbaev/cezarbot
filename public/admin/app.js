@@ -391,7 +391,7 @@ function bookingCard(booking) {
   const isOpenSession = Boolean(booking.openSessionStartedAt && !booking.openSessionClosedAt);
   const isOverdueOpenSession = isOpenSession && new Date(booking.endDatetime).getTime() <= Date.now();
   card.dataset.overdue = isOverdueOpenSession ? 'true' : 'false';
-  const arrivedBadge = booking.arrivedAt ? `<span class="arrival-badge">Клиент пришел · ${arrivedBy}</span>` : '';
+  const arrivedBadge = booking.arrivedAt ? `<span class="arrival-badge">Пришел · ${arrivedBy}</span>` : '';
   const sessionBadge = (() => {
     if (isOpenSession) {
       const extraMinutes = minutesSince(booking.endDatetime);
@@ -423,8 +423,8 @@ function bookingCard(booking) {
         <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
         ${note ? `<div class="booking-client">${note}</div>` : ''}
         <div class="booking-actions">
-          ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Клиент пришел</button>' : ''}
-          ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Открытая сессия'}</button>` : ''}
+          ${isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Пришел</button>' : ''}
+          ${isActive && !booking.openSessionClosedAt ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Открыть'}</button>` : ''}
           <button class="ghost small" data-action="edit">Изменить</button>
           ${isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : ''}
         </div>
