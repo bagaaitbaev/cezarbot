@@ -531,7 +531,7 @@ function bookingCard(booking) {
   const actionButtons = [
     isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Пришел</button>' : '',
     isActive && !booking.openSessionClosedAt
-      ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Открыть'}</button>`
+      ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Продлить'}</button>`
       : '',
     isActive ? '<button class="ghost small" data-action="edit">Изменить</button>' : '',
     isActive ? '<button class="complete small" data-action="complete">Завершить</button>' : '',
