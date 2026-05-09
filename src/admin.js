@@ -336,6 +336,12 @@ function normalizePhone(phone) {
   return digits.slice(0, 11);
 }
 
+function normalizeClientName(name) {
+  return String(name || '')
+    .trim()
+    .replace(/[\p{L}]+/gu, (word) => `${word.charAt(0).toLocaleUpperCase('ru-RU')}${word.slice(1).toLocaleLowerCase('ru-RU')}`);
+}
+
 function actorFields(actor, prefix) {
   return {
     [`${prefix}_by`]: actor?.username || '',
@@ -349,7 +355,7 @@ function createManualBooking(payload, actor) {
   if (!valid.ok) return valid;
   const phone = normalizePhone(payload.phone);
   const userId = phone ? `admin:${phone}` : `admin:guest:${Date.now()}`;
-  upsertUserPhone(db, userId, String(payload.clientName || 'Ручная бронь').trim() || 'Ручная бронь', phone, { phoneSource: 'manual' });
+  upsertUserPhone(db, userId, normalizeClientName(payload.clientName) || 'Ручная бронь', phone, { phoneSource: 'manual' });
   const total = getPrice(valid.zone, valid.durationMinutes, valid.withCombo) || 0;
   const booking = insertBooking(db, {
     userId,
@@ -386,7 +392,7 @@ function updateExistingBooking(id, payload, actor) {
   };
   const phone = normalizePhone(payload.phone);
   if (phone || payload.clientName) {
-    upsertUserPhone(db, existing.user_id, String(payload.clientName || '').trim() || undefined, phone, { phoneSource: phone ? 'manual' : undefined });
+    upsertUserPhone(db, existing.user_id, normalizeClientName(payload.clientName) || undefined, phone, { phoneSource: phone ? 'manual' : undefined });
   }
   const result = updateBooking(db, id, patch);
   return result.ok ? { ok: true, booking: bookingView(result.booking) } : { ok: false, error: 'Не удалось обновить бронь.' };

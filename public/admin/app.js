@@ -119,16 +119,19 @@ function normalizePhoneDigits(value) {
   return digits.slice(0, 11);
 }
 
-function formatPhone(value) {
-  const digits = normalizePhoneDigits(value);
+function joinPhoneChunks(digits) {
   if (!digits) return '';
-  if (!digits.startsWith('7') || digits.length < 11) return digits;
+  if (!digits.startsWith('7')) return digits;
   const parts = ['+7'];
   const chunks = [digits.slice(1, 4), digits.slice(4, 7), digits.slice(7, 9), digits.slice(9, 11)];
   for (const chunk of chunks) {
     if (chunk) parts.push(chunk);
   }
   return parts.join(' ');
+}
+
+function formatPhone(value) {
+  return joinPhoneChunks(normalizePhoneDigits(value));
 }
 
 function cleanPhoneInput(value) {
@@ -139,10 +142,24 @@ function cleanPhoneInput(value) {
   return `${hasLeadingPlus ? '+' : ''}${digits}`;
 }
 
-function formatPhoneInput(value) {
+function formatPartialPhone(value) {
   const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length > 1 && digits.startsWith('8')) return joinPhoneChunks(`7${digits.slice(1)}`.slice(0, 11));
+  if (digits.length === 10) return joinPhoneChunks(`7${digits}`);
+  if (digits.startsWith('7')) return joinPhoneChunks(digits.slice(0, 11));
   if (digits.length >= 11) return formatPhone(value);
   return cleanPhoneInput(value);
+}
+
+function formatPhoneInput(value, inputType = '') {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (inputType.startsWith('delete') && digits.length <= 1) return '';
+  return formatPartialPhone(value);
+}
+
+function capitalizeClientName(value) {
+  return String(value || '').replace(/[\p{L}]+/gu, (word) => `${word.charAt(0).toLocaleUpperCase('ru-RU')}${word.slice(1).toLocaleLowerCase('ru-RU')}`);
 }
 
 async function api(path, options = {}) {
@@ -283,7 +300,7 @@ function formPayload() {
   const payload = {
     id: fd.get('id'),
     date: state.date,
-    clientName: fd.get('clientName'),
+    clientName: capitalizeClientName(fd.get('clientName')).trim(),
     phone: normalizePhoneDigits(fd.get('phone')),
     zone: fd.get('zone'),
     seat: fd.get('seat'),
@@ -309,7 +326,7 @@ function resetForm() {
 
 function editBooking(booking) {
   bookingForm.elements.id.value = booking.id;
-  bookingForm.elements.clientName.value = booking.clientName || '';
+  bookingForm.elements.clientName.value = capitalizeClientName(booking.clientName || '');
   bookingForm.elements.phone.value = formatPhone(booking.phone);
   bookingForm.elements.zone.value = booking.zone;
   syncSeatOptions(booking.seat);
@@ -760,10 +777,16 @@ bookingForm.addEventListener('submit', async (event) => {
   }
 });
 bookingForm.elements.phone.addEventListener('input', (event) => {
-  event.target.value = formatPhoneInput(event.target.value);
+  event.target.value = formatPhoneInput(event.target.value, event.inputType || '');
 });
 bookingForm.elements.phone.addEventListener('blur', (event) => {
   event.target.value = formatPhone(event.target.value);
+});
+bookingForm.elements.clientName.addEventListener('input', (event) => {
+  event.target.value = capitalizeClientName(event.target.value);
+});
+bookingForm.elements.clientName.addEventListener('blur', (event) => {
+  event.target.value = capitalizeClientName(event.target.value).trim();
 });
 
 staffForm.addEventListener('submit', async (event) => {
