@@ -458,11 +458,21 @@ function completeBooking(id, actor) {
 function dashboard(date) {
   const bookings = listBookings(date);
   const active = bookings.filter((b) => isBookedStatus(b.status));
+  refreshDb(db);
+  const recentBookings = db.bookings
+    .filter((b) => isBookedStatus(b.status))
+    .sort((a, b) => {
+      const createdDiff = String(a.created_at || '').localeCompare(String(b.created_at || ''));
+      return createdDiff || Number(a.id || 0) - Number(b.id || 0);
+    })
+    .slice(-50)
+    .map(bookingView);
   return {
     date,
     zones: ZONES,
     capacity: ZONE_CAPACITY,
     bookings,
+    recentBookings,
     stats: {
       active: active.length,
       revenue: active.reduce((sum, b) => sum + b.totalPrice, 0),

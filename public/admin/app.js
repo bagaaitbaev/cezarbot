@@ -14,7 +14,9 @@ const state = {
   dashboard: null,
   user: null,
   knownBookingIds: new Set(),
+  knownGlobalBookingIds: new Set(),
   hasDashboardSnapshot: false,
+  hasGlobalBookingSnapshot: false,
   soundEnabled: localStorage.getItem(SOUND_STORAGE_KEY) === 'true',
   audioContext: null,
   notificationAudio: null,
@@ -289,13 +291,20 @@ function playFallbackTone() {
 function notifyNewBookings(bookings) {
   if (!bookings.length) return;
   playNotificationSound();
-  updateLiveStatus(`Новая бронь #${bookings[bookings.length - 1].id}`);
+  const latest = bookings[bookings.length - 1];
+  const dateText = latest.date && latest.date !== state.date ? ` на ${dayLabel(latest.date)}` : '';
+  updateLiveStatus(`Новая бронь #${latest.id}${dateText}`);
   setTimeout(() => updateLiveStatus('Онлайн'), 5000);
 }
 
 function resetBookingSnapshot() {
   state.knownBookingIds = new Set();
   state.hasDashboardSnapshot = false;
+}
+
+function resetGlobalBookingSnapshot() {
+  state.knownGlobalBookingIds = new Set();
+  state.hasGlobalBookingSnapshot = false;
 }
 
 function formPayload() {
@@ -605,14 +614,18 @@ function renderArchiveBookings(container, bookings, title) {
 
 function renderDashboard(data, { notify = false } = {}) {
   const activeIds = new Set(data.bookings.filter(isActiveBooking).map((b) => Number(b.id)));
+  const globalBookings = data.recentBookings || data.bookings;
+  const globalActiveIds = new Set(globalBookings.filter(isActiveBooking).map((b) => Number(b.id)));
   const newBookings =
-    notify && state.hasDashboardSnapshot
-      ? data.bookings.filter((b) => isActiveBooking(b) && !state.knownBookingIds.has(Number(b.id)))
+    notify && state.hasGlobalBookingSnapshot
+      ? globalBookings.filter((b) => isActiveBooking(b) && !state.knownGlobalBookingIds.has(Number(b.id)))
       : [];
 
   state.dashboard = data;
   state.knownBookingIds = activeIds;
+  state.knownGlobalBookingIds = globalActiveIds;
   state.hasDashboardSnapshot = true;
+  state.hasGlobalBookingSnapshot = true;
   showApp();
   dateInput.value = data.date;
   $('#dayTitle').textContent = dayLabel(data.date);
@@ -831,6 +844,7 @@ dateInput.addEventListener('change', () => {
 $('#logoutBtn').addEventListener('click', async () => {
   await api('/api/logout', { method: 'POST' }).catch(() => {});
   state.user = null;
+  resetGlobalBookingSnapshot();
   closeStaffModal();
   showLogin();
 });
