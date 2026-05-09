@@ -81,6 +81,35 @@ function durationLabel(minutes) {
   return rest ? `${hours} ч ${rest} мин` : `${hours} ч`;
 }
 
+function normalizeTimeInput(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const separated = raw.match(/^(\d{1,2})\s*[:.\-\s]\s*(\d{1,2})$/);
+  let hours;
+  let minutes;
+  if (separated) {
+    hours = Number(separated[1]);
+    minutes = Number(separated[2]);
+  } else {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length <= 2) {
+      hours = Number(digits);
+      minutes = 0;
+    } else if (digits.length === 3) {
+      hours = Number(digits.slice(0, 1));
+      minutes = Number(digits.slice(1));
+    } else if (digits.length === 4) {
+      hours = Number(digits.slice(0, 2));
+      minutes = Number(digits.slice(2));
+    } else {
+      return '';
+    }
+  }
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return '';
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return '';
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 function normalizePhoneDigits(value) {
   let digits = String(value || '').replace(/\D/g, '');
   if (digits.length === 10) digits = `7${digits}`;
@@ -256,7 +285,7 @@ function formPayload() {
     phone: normalizePhoneDigits(fd.get('phone')),
     zone: fd.get('zone'),
     seat: fd.get('seat'),
-    time: fd.get('time'),
+    time: normalizeTimeInput(fd.get('time')) || fd.get('time'),
     durationMinutes: Number(fd.get('durationMinutes')),
     withCombo: fd.get('withCombo') === 'on',
     note: fd.get('note'),
@@ -310,17 +339,25 @@ function syncComboAvailability() {
 }
 
 function setBookingTime(value) {
-  const time = TIME_OPTIONS.includes(value) ? value : '15:00';
+  const time = normalizeTimeInput(value);
+  if (!time) return false;
   bookingForm.elements.time.value = time;
   timeTrigger.querySelector('span').textContent = time;
   timePicker.querySelectorAll('[data-time]').forEach((button) => {
     button.classList.toggle('is-selected', button.dataset.time === time);
   });
+  const manualInput = timePicker.querySelector('[data-time-manual]');
+  if (manualInput) manualInput.value = time;
+  return true;
 }
 
 function openTimePicker() {
   timePicker.classList.remove('hidden');
   timeTrigger.setAttribute('aria-expanded', 'true');
+  const manualInput = timePicker.querySelector('[data-time-manual]');
+  if (manualInput) {
+    manualInput.value = bookingForm.elements.time.value;
+  }
 }
 
 function closeTimePicker() {
@@ -329,14 +366,39 @@ function closeTimePicker() {
 }
 
 function renderTimePicker() {
-  timePicker.innerHTML = TIME_OPTIONS.map(
-    (time) => `<button class="time-option" type="button" role="option" data-time="${time}">${time}</button>`,
-  ).join('');
+  timePicker.innerHTML = `
+    <div class="time-manual">
+      <input data-time-manual type="text" inputmode="numeric" autocomplete="off" placeholder="Например 15:30" aria-label="Ввести время вручную" />
+      <button class="time-manual-apply" type="button" data-time-apply>ОК</button>
+    </div>
+    ${TIME_OPTIONS.map(
+      (time) => `<button class="time-option" type="button" role="option" data-time="${time}">${time}</button>`,
+    ).join('')}
+  `;
   timePicker.addEventListener('click', (event) => {
+    const apply = event.target.closest('[data-time-apply]');
+    if (apply) {
+      const input = timePicker.querySelector('[data-time-manual]');
+      if (setBookingTime(input?.value)) {
+        closeTimePicker();
+        return;
+      }
+      input?.classList.add('is-invalid');
+      return;
+    }
     const button = event.target.closest('[data-time]');
     if (!button) return;
     setBookingTime(button.dataset.time);
     closeTimePicker();
+  });
+  timePicker.querySelector('[data-time-manual]')?.addEventListener('input', (event) => {
+    event.target.classList.remove('is-invalid');
+  });
+  timePicker.querySelector('[data-time-manual]')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    if (setBookingTime(event.target.value)) closeTimePicker();
+    else event.target.classList.add('is-invalid');
   });
   setBookingTime(bookingForm.elements.time.value || '15:00');
 }

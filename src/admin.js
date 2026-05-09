@@ -197,8 +197,39 @@ function clearAuthCookie(res) {
   res.setHeader('Set-Cookie', 'cezar_admin=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
 }
 
+function normalizeTimeInput(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const separated = raw.match(/^(\d{1,2})\s*[:.\-\s]\s*(\d{1,2})$/);
+  let hours;
+  let minutes;
+  if (separated) {
+    hours = Number(separated[1]);
+    minutes = Number(separated[2]);
+  } else {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length <= 2) {
+      hours = Number(digits);
+      minutes = 0;
+    } else if (digits.length === 3) {
+      hours = Number(digits.slice(0, 1));
+      minutes = Number(digits.slice(1));
+    } else if (digits.length === 4) {
+      hours = Number(digits.slice(0, 2));
+      minutes = Number(digits.slice(2));
+    } else {
+      return '';
+    }
+  }
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return '';
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return '';
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 function localIso(date, time) {
-  const parsed = dayjs.tz(`${date} ${time}`, 'YYYY-MM-DD HH:mm', TZ);
+  const normalizedTime = normalizeTimeInput(time);
+  if (!normalizedTime) return null;
+  const parsed = dayjs.tz(`${date} ${normalizedTime}`, 'YYYY-MM-DD HH:mm', TZ);
   if (!parsed.isValid()) return null;
   return parsed.second(0).millisecond(0).toISOString();
 }

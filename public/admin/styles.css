@@ -450,6 +450,28 @@ label {
   box-shadow: var(--shadow);
   padding: 8px;
 }
+.time-manual {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+.time-manual input {
+  height: 36px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.time-manual input.is-invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 4px var(--danger-soft);
+}
+.time-manual-apply {
+  min-height: 36px;
+  border-radius: 9px;
+  padding: 0 12px;
+  font-size: 13px;
+}
 .time-option {
   min-height: 34px;
   border-radius: 9px;
