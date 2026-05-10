@@ -20,6 +20,7 @@ function emptyStore() {
     pending_registrations: [],
     admin_staff: [],
     game_scores: [],
+    clients: {},
   };
 }
 
@@ -32,6 +33,7 @@ function normalizeStore(db) {
   if (!Array.isArray(db.pending_registrations)) db.pending_registrations = [];
   if (!Array.isArray(db.admin_staff)) db.admin_staff = [];
   if (!Array.isArray(db.game_scores)) db.game_scores = [];
+  if (!db.clients || typeof db.clients !== 'object' || Array.isArray(db.clients)) db.clients = {};
   return db;
 }
 
@@ -84,6 +86,7 @@ export function refreshDb(db) {
 function persist(db) {
   const p = resolvePath();
   fs.mkdirSync(path.dirname(p), { recursive: true });
+  rebuildClients(db);
   const tmp = `${p}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2), 'utf8');
   fs.renameSync(tmp, p);
@@ -106,7 +109,91 @@ export function sourceLabel(userId) {
 }
 
 function normalizePhone(phone) {
-  return String(phone ?? '').replace(/\D/g, '');
+  let digits = String(phone ?? '').replace(/\D/g, '');
+  if (digits.length === 10) digits = `7${digits}`;
+  if (digits.length === 11 && digits.startsWith('8')) digits = `7${digits.slice(1)}`;
+  return digits;
+}
+
+function bookingCountsForClient(status) {
+  return isBookedStatus(status) || status === 'completed';
+}
+
+function emptyClient(key, phone = '') {
+  const now = new Date().toISOString();
+  return {
+    id: key,
+    name: '',
+    phone,
+    phone_digits: normalizePhone(phone),
+    sources: [],
+    user_ids: [],
+    booking_count: 0,
+    visit_count: 0,
+    total_spent: 0,
+    first_booking: '',
+    last_booking: '',
+    updated_at: now,
+  };
+}
+
+function clientKeyFor(userId, user = {}) {
+  const phone = user.phone || (String(userId).startsWith('admin:') ? String(userId).slice('admin:'.length) : '');
+  const digits = normalizePhone(phone);
+  return digits ? `phone:${digits}` : `user:${String(userId)}`;
+}
+
+function mergeClientIdentity(clients, userId, user = {}, source = '') {
+  const key = clientKeyFor(userId, user);
+  const existing = clients[key] || emptyClient(key, user.phone || '');
+  const phoneDigits = normalizePhone(user.phone);
+
+  if (user.telegram_name) existing.name = user.telegram_name;
+  if (user.phone && (!existing.phone || user.phone_source === 'manual')) existing.phone = user.phone;
+  if (phoneDigits) existing.phone_digits = phoneDigits;
+  if (source && !existing.sources.includes(source)) existing.sources.push(source);
+  if (!existing.user_ids.includes(String(userId))) existing.user_ids.push(String(userId));
+  existing.updated_at = user.updated_at || existing.updated_at || new Date().toISOString();
+  clients[key] = existing;
+  return existing;
+}
+
+function rebuildClients(db) {
+  normalizeStore(db);
+  const users = db.users || {};
+  const clients = {};
+
+  for (const [userId, user] of Object.entries(users)) {
+    mergeClientIdentity(clients, userId, user, sourceLabel(userId));
+  }
+
+  for (const booking of db.bookings || []) {
+    const userId = String(booking.user_id);
+    const user = users[userId] || {};
+    const fallbackUser =
+      user.phone || user.telegram_name
+        ? user
+        : {
+            user_id: userId,
+            phone: userId.startsWith('admin:') ? userId.slice('admin:'.length) : '',
+          };
+    const client = mergeClientIdentity(clients, userId, fallbackUser, booking.source || sourceLabel(userId));
+    if (!bookingCountsForClient(booking.status)) continue;
+
+    client.booking_count += 1;
+    client.visit_count += 1;
+    client.total_spent += Number(booking.total_price || 0);
+    if (!client.first_booking || booking.start_datetime < client.first_booking) client.first_booking = booking.start_datetime;
+    if (!client.last_booking || booking.start_datetime > client.last_booking) client.last_booking = booking.start_datetime;
+  }
+
+  for (const client of Object.values(clients)) {
+    client.sources.sort();
+    client.user_ids.sort();
+  }
+
+  db.clients = clients;
+  return clients;
 }
 
 function writeCsv(filePath, headers, rows) {
@@ -162,35 +249,14 @@ export function exportCsvFiles(db) {
     bookingRows,
   );
 
-  const clientMap = new Map();
-  for (const b of bookings.filter((x) => isBookedStatus(x.status))) {
-    const u = users[String(b.user_id)] || {};
-    const phone = normalizePhone(u.phone);
-    const key = phone || `user:${String(b.user_id)}`;
-    const existing =
-      clientMap.get(key) ||
-      {
-        sources: new Set(),
-        name: u.telegram_name || '',
-        phone,
-        count: 0,
-        total: 0,
-        lastBooking: '',
-      };
-    existing.sources.add(sourceLabel(b.user_id));
-    existing.name = u.telegram_name || existing.name;
-    existing.phone = phone || existing.phone;
-    existing.count += 1;
-    existing.total += Number(b.total_price || 0);
-    if (!existing.lastBooking || b.start_datetime > existing.lastBooking) {
-      existing.lastBooking = b.start_datetime;
-    }
-    clientMap.set(key, existing);
-  }
-
-  const clientRows = [...clientMap.values()]
-    .sort((a, b) => (b.lastBooking || '').localeCompare(a.lastBooking || ''))
-    .map((c) => [[...c.sources].join(', '), c.name, c.phone, c.count, c.lastBooking, c.total]);
+  const clientRows = getAllClientsForExport(db).map((c) => [
+    c.sources.join(', '),
+    c.name,
+    c.phone,
+    c.bookingCount,
+    c.lastBooking,
+    c.totalSpent,
+  ]);
 
   writeCsv(
     path.join(dataDir, 'clients_export.csv'),
@@ -551,6 +617,13 @@ export function markReminderSent(db, bookingId) {
   persist(db);
 }
 
+export function markManualWhatsAppConfirmationSent(db, bookingId) {
+  refreshDb(db);
+  const b = db.bookings.find((x) => x.id === bookingId);
+  if (b) b.manual_whatsapp_confirmation_sent = 1;
+  persist(db);
+}
+
 export function getBookingsNeedingReminder(db) {
   refreshDb(db);
   const now = Date.now();
@@ -600,7 +673,7 @@ export function getStatsForPeriod(db, startIso, endIso) {
   let review2gisSent = 0;
   for (const b of bookings) {
     if (b.zone in byZone) byZone[b.zone]++;
-    clients.add(b.user_id);
+    clients.add(clientKeyFor(b.user_id, db.users[String(b.user_id)] || {}));
     if (b.review_2gis_sent === 1) review2gisSent++;
   }
   return {
@@ -634,7 +707,7 @@ export function cancelBooking(db, bookingId, userId) {
 }
 
 /** Уникальные клиенты с агрегированными данными по броням — для экспорта */
-export function getAllClientsForExport(db) {
+function getAllClientsForExportLegacy(db) {
   refreshDb(db);
   const booked = db.bookings.filter((b) => isBookedStatus(b.status));
   const map = {};
@@ -662,6 +735,26 @@ export function getAllClientsForExport(db) {
 }
 
 /** Все подтверждённые брони с данными клиента — для экспорта */
+export function getAllClientsForExport(db) {
+  refreshDb(db);
+  const clients = rebuildClients(db);
+  return Object.values(clients)
+    .map((client) => ({
+      id: client.id,
+      name: client.name || '—',
+      phone: client.phone || '—',
+      phoneDigits: client.phone_digits || '',
+      sources: client.sources || [],
+      userIds: client.user_ids || [],
+      bookingCount: Number(client.booking_count || 0),
+      visitCount: Number(client.visit_count || 0),
+      totalSpent: Number(client.total_spent || 0),
+      firstBooking: client.first_booking || null,
+      lastBooking: client.last_booking || null,
+    }))
+    .sort((a, b) => (b.lastBooking ?? '').localeCompare(a.lastBooking ?? ''));
+}
+
 export function getAllBookingsForExport(db) {
   refreshDb(db);
   return db.bookings

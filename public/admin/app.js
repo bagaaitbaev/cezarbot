@@ -307,9 +307,10 @@ function playFallbackTone() {
 }
 
 async function notifyNewBookings(bookings) {
-  if (!bookings.length) return;
+  const botBookings = bookings.filter((booking) => booking.source === 'Telegram' || booking.source === 'WhatsApp');
+  if (!botBookings.length) return;
   const played = await playNotificationSound();
-  const latest = bookings[bookings.length - 1];
+  const latest = botBookings[botBookings.length - 1];
   const dateText = latest.date && latest.date !== state.date ? ` на ${dayLabel(latest.date)}` : '';
   updateLiveStatus(played || !state.soundEnabled ? `Новая бронь #${latest.id}${dateText}` : 'Новая бронь. Нажмите на страницу для звука');
   setTimeout(() => updateLiveStatus('Онлайн'), 5000);
@@ -331,7 +332,7 @@ function formPayload() {
     id: fd.get('id'),
     date: state.date,
     clientName: capitalizeClientName(fd.get('clientName')).trim(),
-    phone: normalizePhoneDigits(fd.get('phone')),
+    phone: String(fd.get('phone') || '').trim(),
     zone: fd.get('zone'),
     seat: fd.get('seat'),
     time: normalizeTimeInput(fd.get('time')) || fd.get('time'),

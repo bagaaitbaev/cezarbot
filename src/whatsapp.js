@@ -17,11 +17,14 @@ import {
   getStatsForPeriod,
   getUser,
   insertBooking,
+  isBookedStatus,
   listActivePromoCodes,
   listConfirmedBookingsInRange,
   listUpcomingBookings,
+  markManualWhatsAppConfirmationSent,
   markPromoUsed,
   resetBookings,
+  refreshDb,
   saveRegistrationAttempt,
   setUserPromoPending,
   upsertUserLang,
@@ -46,6 +49,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 const SESSION_FILE = path.join(projectRoot, 'data', 'whatsapp-sessions.json');
 const QR_IMAGE_FILE = path.join(projectRoot, 'data', 'whatsapp-qr.png');
+const DEFAULT_WA_WEB_VERSION_URL =
+  'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1039181464-alpha.html';
 
 function loadEnvFile() {
   const envPath = path.join(projectRoot, '.env');
@@ -245,6 +250,20 @@ function normalizeManualPhone(text) {
   return digits.length >= 10 && digits.length <= 15 ? digits : '';
 }
 
+function whatsappChatIdFromPhone(phone) {
+  const digits = normalizeManualPhone(phone);
+  return digits ? `${digits}@c.us` : '';
+}
+
+function whatsappRecipientForBooking(db, booking) {
+  const userId = String(booking?.user_id ?? '');
+  if (userId.includes('@')) return userId;
+  if (!userId.startsWith('admin:')) return '';
+  const user = getUser(db, userId);
+  const phone = user?.phone || userId.slice('admin:'.length);
+  return whatsappChatIdFromPhone(phone);
+}
+
 function hasUsablePhone(userId, user, contactPhone) {
   if (contactPhone) return true;
   if (!user?.phone) return false;
@@ -308,14 +327,54 @@ async function notifyOperatorsNewBooking(client, { booking, guestRow, guestName 
   await sendOperatorMessage(client, text);
 }
 
+function manualConfirmationText(booking) {
+  return [
+    'Здравствуйте! Ваша бронь в CEZAR PS5 подтверждена.',
+    '',
+    `Зона: ${zoneLabel(booking.zone)}`,
+    `Начало: ${formatKzDateTime(booking.start_datetime)}`,
+    `Длительность: ${minutesLabel(booking.duration_minutes, 'ru')}`,
+    `Сумма: ${formatPrice(booking.total_price)} тг`,
+    '',
+    'Ждем вас!',
+  ].join('\n');
+}
+
+function startManualWhatsAppConfirmationJob(client, db) {
+  const tick = async () => {
+    refreshDb(db);
+    const now = Date.now();
+    const list = db.bookings.filter((b) => {
+      if (!String(b.user_id ?? '').startsWith('admin:')) return false;
+      if (!isBookedStatus(b.status)) return false;
+      if (b.manual_whatsapp_confirmation_sent === 1) return false;
+      return new Date(b.start_datetime).getTime() > now;
+    });
+
+    for (const b of list) {
+      const recipient = whatsappRecipientForBooking(db, b);
+      if (!recipient) continue;
+      try {
+        await client.sendMessage(recipient, manualConfirmationText(b));
+        markManualWhatsAppConfirmationSent(db, b.id);
+      } catch (e) {
+        console.error(`[CEZAR WhatsApp] Manual booking confirmation failed for booking ${b.id}:`, e?.message ?? e);
+      }
+    }
+  };
+  void tick();
+  return setInterval(() => void tick(), 30_000);
+}
+
 function startWhatsAppReminderJob(client, db) {
   const tick = async () => {
     const { getBookingsNeedingReminder, markReminderSent } = await import('./db.js');
     for (const b of getBookingsNeedingReminder(db)) {
-      if (!String(b.user_id).includes('@')) continue;
+      const recipient = whatsappRecipientForBooking(db, b);
+      if (!recipient) continue;
       try {
         await client.sendMessage(
-          b.user_id,
+          recipient,
           `Напоминание: ваша бронь ${zoneLabel(b.zone)} начнется ${formatKzDateTime(
             b.start_datetime,
           )}. Длительность: ${minutesLabel(b.duration_minutes, 'ru')}.`,
@@ -334,10 +393,11 @@ function startWhatsAppReview2gisJob(client, db) {
     if (!url) return;
     const { getBookingsNeedingReview2gis, markReview2gisSent } = await import('./db.js');
     for (const b of getBookingsNeedingReview2gis(db)) {
-      if (!String(b.user_id).includes('@')) continue;
+      const recipient = whatsappRecipientForBooking(db, b);
+      if (!recipient) continue;
       try {
         await client.sendMessage(
-          b.user_id,
+          recipient,
           `Спасибо за визит в CEZAR! Будем рады вашей оценке в 2GIS:\n${url}`,
         );
         markReview2gisSent(db, b.id);
@@ -742,12 +802,24 @@ process.env.DB_PATH = dbPath;
 const db = openDb();
 const pairingPhone = String(process.env.WHATSAPP_PAIRING_PHONE ?? '').replace(/\D/g, '');
 const pairingEnabled = pairingPhone.length > 0;
+const webVersionUrl = process.env.WHATSAPP_WEB_VERSION_URL?.trim() || DEFAULT_WA_WEB_VERSION_URL;
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: process.env.WHATSAPP_CLIENT_ID || 'cezarbot' }),
+  webVersionCache: {
+    type: 'remote',
+    remotePath: webVersionUrl,
+  },
   puppeteer: {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+    ],
   },
   ...(pairingEnabled
     ? {
@@ -787,6 +859,7 @@ client.on('code', (code) => {
 
 client.on('ready', () => {
   console.log('[CEZAR WhatsApp] Bot is ready.');
+  startManualWhatsAppConfirmationJob(client, db);
   startWhatsAppReminderJob(client, db);
   startWhatsAppReview2gisJob(client, db);
 });
@@ -802,4 +875,11 @@ client.on('disconnected', (reason) => {
 });
 
 console.log('[CEZAR WhatsApp] Starting...');
-await client.initialize();
+console.log(`[CEZAR WhatsApp] Web version cache: ${webVersionUrl}`);
+try {
+  await client.initialize();
+} catch (e) {
+  console.error('[CEZAR WhatsApp] Failed to start:', e?.message ?? e);
+  console.error('[CEZAR WhatsApp] If this repeats, close WhatsApp Desktop/Chrome, rename .wwebjs_auth/session-cezarbot, then run npm run start:whatsapp and scan the new QR.');
+  throw e;
+}

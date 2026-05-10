@@ -374,11 +374,15 @@ function validateBookingPayload(payload, excludeId = null) {
   return { ok: true, startIso, zone, seat, durationMinutes, withCombo };
 }
 
-function normalizePhone(phone) {
+function normalizePhoneDigits(phone) {
   let digits = String(phone || '').replace(/\D/g, '');
   if (digits.length === 10) digits = `7${digits}`;
   if (digits.length === 11 && digits.startsWith('8')) digits = `7${digits.slice(1)}`;
   return digits.slice(0, 11);
+}
+
+function displayPhone(phone) {
+  return String(phone || '').trim();
 }
 
 function normalizeClientName(name) {
@@ -398,8 +402,9 @@ function actorFields(actor, prefix) {
 function createManualBooking(payload, actor) {
   const valid = validateBookingPayload(payload);
   if (!valid.ok) return valid;
-  const phone = normalizePhone(payload.phone);
-  const userId = phone ? `admin:${phone}` : `admin:guest:${Date.now()}`;
+  const phoneDigits = normalizePhoneDigits(payload.phone);
+  const phone = displayPhone(payload.phone) || phoneDigits;
+  const userId = phoneDigits ? `admin:${phoneDigits}` : `admin:guest:${Date.now()}`;
   upsertUserPhone(db, userId, normalizeClientName(payload.clientName) || 'Ручная бронь', phone, { phoneSource: 'manual' });
   const total = getPrice(valid.zone, valid.durationMinutes, valid.withCombo) || 0;
   const booking = insertBooking(db, {
@@ -435,7 +440,8 @@ function updateExistingBooking(id, payload, actor) {
     note: String(payload.note || '').trim(),
     ...actorFields(actor, 'updated'),
   };
-  const phone = normalizePhone(payload.phone);
+  const phoneDigits = normalizePhoneDigits(payload.phone);
+  const phone = displayPhone(payload.phone) || phoneDigits;
   if (phone || payload.clientName) {
     upsertUserPhone(db, existing.user_id, normalizeClientName(payload.clientName) || undefined, phone, { phoneSource: phone ? 'manual' : undefined });
   }
