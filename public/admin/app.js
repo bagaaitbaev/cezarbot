@@ -871,16 +871,22 @@ function moveGame(direction) {
   addGameTile(state.game);
   state.game.over = !canMoveGame(state.game);
   saveGame();
-  renderGame();
+  renderGame(direction);
   if (state.game.over) submitGameScore().catch(() => {});
 }
 
-function renderGame() {
+function renderGame(direction = '') {
   if (!gameBoard || !state.game) return;
+  gameBoard.classList.remove('game-move-up', 'game-move-down', 'game-move-left', 'game-move-right');
   gameBoard.innerHTML = state.game.board
     .flat()
     .map((value) => `<div class="game-tile" data-value="${value || 0}">${value || ''}</div>`)
     .join('');
+  if (direction) {
+    gameBoard.offsetHeight;
+    gameBoard.classList.add(`game-move-${direction}`);
+    setTimeout(() => gameBoard.classList.remove(`game-move-${direction}`), 180);
+  }
   gameScore.textContent = String(state.game.score || 0);
   gameBest.textContent = localStorage.getItem(GAME_BEST_KEY) || '0';
   gameMessage.textContent = state.game.over ? 'Игра окончена. Результат сохранен.' : '';

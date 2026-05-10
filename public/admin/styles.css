@@ -892,17 +892,18 @@ label {
 }
 .mini-game {
   margin-top: 18px;
+  max-width: 860px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-solid);
-  padding: 14px;
+  padding: 12px;
 }
 .mini-game-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 .mini-game h3,
 .mini-game h4,
@@ -910,7 +911,8 @@ label {
   margin: 0;
 }
 .mini-game h3 {
-  font-size: 18px;
+  font-size: 17px;
+  line-height: 1.1;
 }
 .mini-game p,
 .game-message,
@@ -920,36 +922,38 @@ label {
 }
 .mini-game-score {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 .mini-game-score span {
-  min-height: 30px;
+  min-height: 28px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--ghost-bg);
-  padding: 0 10px;
+  padding: 0 9px;
   font-size: 12px;
   font-weight: 700;
 }
 .mini-game-body {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(170px, 1fr);
-  gap: 14px;
+  grid-template-columns: 220px minmax(190px, 360px);
+  gap: 12px;
   align-items: start;
 }
 .game-board {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 7px;
+  width: 220px;
   aspect-ratio: 1;
-  border-radius: 13px;
+  border-radius: 12px;
   background: var(--zone-bg);
-  padding: 8px;
+  padding: 7px;
   outline: none;
+  overflow: hidden;
 }
 .game-board:focus-visible {
   box-shadow: 0 0 0 4px var(--focus-ring);
@@ -958,11 +962,13 @@ label {
   min-width: 0;
   display: grid;
   place-items: center;
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--field);
   color: var(--text);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
+  line-height: 1;
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 .game-tile[data-value="2"] { background: rgba(10, 132, 255, 0.12); }
 .game-tile[data-value="4"] { background: rgba(48, 215, 104, 0.14); }
@@ -983,16 +989,24 @@ label {
 }
 .game-side {
   display: grid;
-  gap: 10px;
+  gap: 9px;
+  justify-items: start;
+}
+#gameNew {
+  width: auto;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
 }
 .game-controls {
   display: grid;
-  grid-template-columns: repeat(3, 42px);
+  grid-template-columns: repeat(3, 38px);
   gap: 6px;
   justify-content: start;
 }
 .game-controls button {
-  min-height: 38px;
+  width: 38px;
+  min-height: 36px;
   padding: 0;
   background: var(--ghost-bg);
   color: var(--text);
@@ -1012,7 +1026,8 @@ label {
 .game-leaderboard {
   display: grid;
   gap: 6px;
-  margin-top: 8px;
+  width: min(100%, 360px);
+  margin-top: 6px;
 }
 .game-leaderboard div {
   display: flex;
@@ -1020,8 +1035,8 @@ label {
   gap: 10px;
   border-radius: 9px;
   background: var(--ghost-bg);
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 7px 9px;
+  font-size: 12px;
   font-weight: 650;
 }
 .game-leaderboard span {
@@ -1029,6 +1044,26 @@ label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.game-board.game-move-up .game-tile:not([data-value="0"]) { animation: gameNudgeUp 170ms ease-out; }
+.game-board.game-move-down .game-tile:not([data-value="0"]) { animation: gameNudgeDown 170ms ease-out; }
+.game-board.game-move-left .game-tile:not([data-value="0"]) { animation: gameNudgeLeft 170ms ease-out; }
+.game-board.game-move-right .game-tile:not([data-value="0"]) { animation: gameNudgeRight 170ms ease-out; }
+@keyframes gameNudgeUp {
+  0% { transform: translateY(9px); opacity: 0.82; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes gameNudgeDown {
+  0% { transform: translateY(-9px); opacity: 0.82; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes gameNudgeLeft {
+  0% { transform: translateX(9px); opacity: 0.82; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes gameNudgeRight {
+  0% { transform: translateX(-9px); opacity: 0.82; }
+  100% { transform: translateX(0); opacity: 1; }
 }
 .modal {
   position: fixed;
