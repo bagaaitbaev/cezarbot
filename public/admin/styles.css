@@ -946,7 +946,7 @@ label {
 .game-board {
   --board-pad: 7px;
   --tile-gap: 7px;
-  --tile-size: calc((100% - (var(--board-pad) * 2) - (var(--tile-gap) * 3)) / 4);
+  --tile-size: 42.75px;
   position: relative;
   width: 206px;
   aspect-ratio: 1;
@@ -966,10 +966,7 @@ label {
   top: 0;
   width: var(--tile-size);
   height: var(--tile-size);
-  transform: translate(
-    calc(var(--board-pad) + var(--col) * (var(--tile-size) + var(--tile-gap))),
-    calc(var(--board-pad) + var(--row) * (var(--tile-size) + var(--tile-gap)))
-  );
+  transform: translate(var(--x), var(--y));
   border-radius: 8px;
 }
 .game-cell {
@@ -979,6 +976,7 @@ label {
 .game-tile-layer {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 .game-tile {
   display: grid;
@@ -1074,33 +1072,21 @@ label {
 @keyframes gameTileSlide {
   from {
     opacity: 0.88;
-    transform: translate(
-      calc(var(--board-pad) + var(--col) * (var(--tile-size) + var(--tile-gap)) + var(--from-x)),
-      calc(var(--board-pad) + var(--row) * (var(--tile-size) + var(--tile-gap)) + var(--from-y))
-    );
+    transform: translate(calc(var(--x) + var(--from-x)), calc(var(--y) + var(--from-y)));
   }
   to {
     opacity: 1;
-    transform: translate(
-      calc(var(--board-pad) + var(--col) * (var(--tile-size) + var(--tile-gap))),
-      calc(var(--board-pad) + var(--row) * (var(--tile-size) + var(--tile-gap)))
-    );
+    transform: translate(var(--x), var(--y));
   }
 }
 @keyframes gameTileSpawn {
   from {
     opacity: 0;
-    transform: translate(
-      calc(var(--board-pad) + var(--col) * (var(--tile-size) + var(--tile-gap))),
-      calc(var(--board-pad) + var(--row) * (var(--tile-size) + var(--tile-gap)))
-    ) scale(0.78);
+    transform: translate(var(--x), var(--y)) scale(0.78);
   }
   to {
     opacity: 1;
-    transform: translate(
-      calc(var(--board-pad) + var(--col) * (var(--tile-size) + var(--tile-gap))),
-      calc(var(--board-pad) + var(--row) * (var(--tile-size) + var(--tile-gap)))
-    ) scale(1);
+    transform: translate(var(--x), var(--y)) scale(1);
   }
 }
 .modal {

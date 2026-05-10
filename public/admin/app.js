@@ -3,6 +3,9 @@ const SOUND_STORAGE_KEY = 'cezarSoundEnabled';
 const LAST_SEEN_BOOKING_KEY = 'cezarLastSeenBookingId';
 const GAME_STORAGE_KEY = 'cezar2048State';
 const GAME_BEST_KEY = 'cezar2048Best';
+const GAME_BOARD_PAD = 7;
+const GAME_TILE_SIZE = 42.75;
+const GAME_TILE_STEP = 49.75;
 
 function todayLocal() {
   const d = new Date();
@@ -881,7 +884,9 @@ function renderGame(direction = '', previousBoard = null) {
   const cells = Array.from({ length: 16 }, (_, index) => {
     const row = Math.floor(index / 4);
     const col = index % 4;
-    return `<div class="game-cell" style="--row:${row};--col:${col}"></div>`;
+    const x = GAME_BOARD_PAD + col * GAME_TILE_STEP;
+    const y = GAME_BOARD_PAD + row * GAME_TILE_STEP;
+    return `<div class="game-cell" style="--x:${x}px;--y:${y}px"></div>`;
   }).join('');
   const previousValues = new Map();
   if (previousBoard) {
@@ -897,10 +902,12 @@ function renderGame(direction = '', previousBoard = null) {
   }[direction] || ['0px', '0px'];
   const tiles = state.game.board.map((row, r) => row.map((value, c) => {
     if (!value) return '';
+    const x = GAME_BOARD_PAD + c * GAME_TILE_STEP;
+    const y = GAME_BOARD_PAD + r * GAME_TILE_STEP;
     const seenBefore = previousValues.get(value) > 0;
     if (seenBefore) previousValues.set(value, previousValues.get(value) - 1);
     const className = seenBefore && direction ? 'game-tile game-tile-slide' : 'game-tile game-tile-spawn';
-    return `<div class="${className}" data-value="${value}" style="--row:${r};--col:${c};--from-x:${offset[0]};--from-y:${offset[1]}">${value}</div>`;
+    return `<div class="${className}" data-value="${value}" style="--x:${x}px;--y:${y}px;--from-x:${offset[0]};--from-y:${offset[1]}">${value}</div>`;
   }).join('')).join('');
   gameBoard.innerHTML = `${cells}<div class="game-tile-layer">${tiles}</div>`;
   gameScore.textContent = String(state.game.score || 0);
