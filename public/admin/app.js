@@ -530,12 +530,12 @@ function bookingCard(booking) {
   })();
   const actionButtons = [
     isActive && !booking.arrivedAt ? '<button class="arrival small" data-action="arrival">Пришел</button>' : '',
-    isActive && !booking.openSessionClosedAt
+    isActive && booking.arrivedAt && !booking.openSessionClosedAt
       ? `<button class="session small" data-action="${isOpenSession ? 'closeSession' : 'openSession'}">${isOpenSession ? 'Закрыть' : 'Продлить'}</button>`
       : '',
-    isActive ? '<button class="ghost small" data-action="edit">Изменить</button>' : '',
-    isActive ? '<button class="complete small" data-action="complete">Завершить</button>' : '',
-    isActive ? '<button class="danger small" data-action="cancel">Отменить</button>' : '',
+    isActive && !booking.arrivedAt ? '<button class="ghost small" data-action="edit">Изменить</button>' : '',
+    isActive && booking.arrivedAt ? '<button class="complete small" data-action="complete">Завершить</button>' : '',
+    isActive && !booking.arrivedAt ? '<button class="danger small" data-action="cancel">Отменить</button>' : '',
   ].join('');
   card.innerHTML = `
     <div class="booking-summary">
