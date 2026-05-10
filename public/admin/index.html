@@ -68,40 +68,49 @@
             </div>
             <form id="bookingForm" class="booking-form">
               <input type="hidden" name="id" />
-              <label>Клиент<input name="clientName" placeholder="Имя клиента" /></label>
-              <label>Телефон<input name="phone" inputmode="tel" placeholder="+7 700 123 45 67" /></label>
-              <div class="grid-2">
-                <label>Зона
-                  <select name="zone">
-                    <option value="zal">ЗАЛ</option>
-                    <option value="cabinet">КАБИНКА</option>
-                    <option value="vip">VIP</option>
-                  </select>
-                </label>
-                <label>Место
-                  <select name="seat"></select>
-                </label>
-              </div>
-              <div class="grid-2">
-                <label class="time-field">Время
-                  <input name="time" type="hidden" value="15:00" />
-                  <button id="timeTrigger" class="time-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-                    <span>15:00</span>
-                  </button>
-                  <div id="timePicker" class="time-picker hidden" role="listbox" aria-label="Выберите время"></div>
-                </label>
-                <label>Длительность
-                  <select name="durationMinutes">
-                    <option value="60">1 час</option>
-                    <option value="180">3 часа</option>
-                    <option value="300">5 часов</option>
-                  </select>
-                </label>
-              </div>
-              <div class="grid-2 combo-row">
-                <label class="switch"><input name="withCombo" type="checkbox" /><span>Комбо</span></label>
-              </div>
-              <label>Комментарий<textarea name="note" rows="3" placeholder="Например: звонок, предоплата, пожелания"></textarea></label>
+              <fieldset class="form-section">
+                <legend>Клиент</legend>
+                <label>Клиент<input name="clientName" placeholder="Имя клиента" /></label>
+                <label>Телефон<input name="phone" inputmode="tel" placeholder="+7 700 123 45 67" /></label>
+              </fieldset>
+              <fieldset class="form-section">
+                <legend>Время и место</legend>
+                <div class="grid-2">
+                  <label>Зона
+                    <select name="zone">
+                      <option value="zal">ЗАЛ</option>
+                      <option value="cabinet">КАБИНКА</option>
+                      <option value="vip">VIP</option>
+                    </select>
+                  </label>
+                  <label>Место
+                    <select name="seat"></select>
+                  </label>
+                </div>
+                <div class="grid-2">
+                  <label class="time-field">Время
+                    <input name="time" type="hidden" value="15:00" />
+                    <button id="timeTrigger" class="time-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                      <span>15:00</span>
+                    </button>
+                    <div id="timePicker" class="time-picker hidden" role="listbox" aria-label="Выберите время"></div>
+                  </label>
+                  <label>Длительность
+                    <select name="durationMinutes">
+                      <option value="60">1 час</option>
+                      <option value="180">3 часа</option>
+                      <option value="300">5 часов</option>
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+              <fieldset class="form-section">
+                <legend>Детали</legend>
+                <div class="grid-2 combo-row">
+                  <label class="switch"><input name="withCombo" type="checkbox" /><span>Комбо</span></label>
+                </div>
+                <label>Комментарий<textarea name="note" rows="3" placeholder="Например: звонок, предоплата, пожелания"></textarea></label>
+              </fieldset>
               <div id="formError" class="form-error"></div>
               <button type="submit">Сохранить бронь</button>
             </form>

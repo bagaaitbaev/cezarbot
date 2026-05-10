@@ -552,22 +552,35 @@ function bookingCard(booking) {
   ].join('');
   card.innerHTML = `
     <div class="booking-summary">
-      <div class="booking-summary-line">
-        <strong>${escapeHtml(booking.time)} - ${escapeHtml(booking.endTime)}</strong>
-        <span>${clientName}</span>
+      <div class="booking-time">
+        <strong>${escapeHtml(booking.time)}</strong>
+        <span>${escapeHtml(booking.endTime)}</span>
+      </div>
+      <div class="booking-main">
+        <div class="booking-client-name">${clientName}</div>
+        <div class="booking-subline">
+          <span>${phone || 'Телефон не указан'}</span>
+          <span>${zoneLabel}</span>
+          <span>${seat}</span>
+        </div>
+      </div>
+      <div class="booking-side">
+        <span class="booking-source-chip"><i class="dot ${sourceClass(booking.source)}"></i>${source}</span>
+        <span class="booking-number">#${escapeHtml(booking.id)}</span>
       </div>
       <span class="booking-chevron" aria-hidden="true"></span>
     </div>
     <div class="booking-details">
       <div class="booking-details-inner">
-        <div class="booking-phone">Тел: ${phone || 'не указан'}</div>
         <div class="booking-badges">
-          <span>${zoneLabel}</span>
-          <span>${seat}</span>
           ${arrivedBadge}
           ${sessionBadge}
         </div>
-        <div class="booking-meta">${Number(booking.durationMinutes || 0) / 60} ч · ${money(booking.totalPrice)} · <span><i class="dot ${sourceClass(booking.source)}"></i> ${source}</span></div>
+        <div class="booking-meta">
+          <span>Длительность: ${Number(booking.durationMinutes || 0) / 60} ч</span>
+          <span>Сумма: ${money(booking.totalPrice)}</span>
+          <span>Источник: ${source}</span>
+        </div>
         ${note ? `<div class="booking-client">${note}</div>` : ''}
         ${actionButtons ? `<div class="booking-actions">${actionButtons}</div>` : ''}
       </div>

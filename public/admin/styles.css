@@ -167,6 +167,24 @@ button:disabled { opacity: 0.55; cursor: default; }
 .booking-form {
   gap: 13px;
 }
+.form-section {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--zone-bg);
+  padding: 12px;
+  margin: 0;
+}
+.form-section legend {
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 input, select, textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -684,34 +702,97 @@ label {
     linear-gradient(105deg, rgba(255, 69, 58, 0.22), rgba(255, 69, 58, 0.075) 48%, var(--surface-solid) 100%);
 }
 .booking-summary {
-  min-height: 52px;
-  display: flex;
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto 28px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 10px;
 }
-.booking-summary-line {
+.booking-time {
   min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
+  min-height: 46px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
 }
-.booking-summary-line strong {
-  flex: 0 0 auto;
-  display: block;
-  font-size: 15px;
-  line-height: 1.25;
+.booking-time strong {
+  font-size: 16px;
+  line-height: 1.1;
 }
-.booking-summary-line span {
+.booking-time span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 720;
+}
+.booking-main {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.booking-client-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 760;
   line-height: 1.25;
+}
+.booking-subline {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 640;
+}
+.booking-subline span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.booking-subline span + span::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  display: inline-block;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0.55;
+  margin-right: 7px;
+  vertical-align: middle;
+}
+.booking-side {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+.booking-source-chip {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ghost-bg);
+  color: var(--text);
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+.booking-number {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
 }
 .booking-chevron {
   width: 28px;
@@ -755,7 +836,7 @@ label {
 }
 .booking-details-inner {
   overflow: hidden;
-  padding: 0 14px;
+  padding: 0 12px;
 }
 .booking-card[data-expanded="true"] .booking-details {
   grid-template-rows: 1fr;
@@ -775,7 +856,7 @@ label {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 .booking-badges span {
   display: inline-flex;
@@ -803,10 +884,19 @@ label {
   background: rgba(215, 0, 21, 0.09);
   color: var(--danger);
 }
-.booking-meta, .booking-client {
+.booking-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+}
+.booking-client {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 6px;
 }
 .booking-actions {
   margin-top: 9px;
@@ -1177,6 +1267,27 @@ label {
   .topbar h1 { font-size: 30px; }
   .stats { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }
+  .booking-summary {
+    grid-template-columns: 58px minmax(0, 1fr) 28px;
+  }
+  .booking-side {
+    grid-column: 2 / 3;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-items: start;
+  }
+  .booking-chevron {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+  .booking-subline {
+    flex-wrap: wrap;
+    gap: 4px 7px;
+  }
+  .booking-subline span {
+    white-space: normal;
+  }
   .booking-actions { grid-template-columns: 1fr; }
   .date-controls {
     display: grid;
