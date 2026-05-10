@@ -850,7 +850,8 @@ function canMoveGame(game) {
 
 function moveGame(direction) {
   if (!state.game || state.game.over) return;
-  const before = JSON.stringify(state.game.board);
+  const previousBoard = state.game.board.map((row) => row.slice());
+  const before = JSON.stringify(previousBoard);
   let gained = 0;
   for (let i = 0; i < 4; i += 1) {
     const line =
@@ -871,22 +872,37 @@ function moveGame(direction) {
   addGameTile(state.game);
   state.game.over = !canMoveGame(state.game);
   saveGame();
-  renderGame(direction);
+  renderGame(direction, previousBoard);
   if (state.game.over) submitGameScore().catch(() => {});
 }
 
-function renderGame(direction = '') {
+function renderGame(direction = '', previousBoard = null) {
   if (!gameBoard || !state.game) return;
-  gameBoard.classList.remove('game-move-up', 'game-move-down', 'game-move-left', 'game-move-right');
-  gameBoard.innerHTML = state.game.board
-    .flat()
-    .map((value) => `<div class="game-tile" data-value="${value || 0}">${value || ''}</div>`)
-    .join('');
-  if (direction) {
-    gameBoard.offsetHeight;
-    gameBoard.classList.add(`game-move-${direction}`);
-    setTimeout(() => gameBoard.classList.remove(`game-move-${direction}`), 180);
+  const cells = Array.from({ length: 16 }, (_, index) => {
+    const row = Math.floor(index / 4);
+    const col = index % 4;
+    return `<div class="game-cell" style="--row:${row};--col:${col}"></div>`;
+  }).join('');
+  const previousValues = new Map();
+  if (previousBoard) {
+    previousBoard.forEach((row) => row.forEach((value) => {
+      if (value) previousValues.set(value, (previousValues.get(value) || 0) + 1);
+    }));
   }
+  const offset = {
+    up: ['0px', '18px'],
+    down: ['0px', '-18px'],
+    left: ['18px', '0px'],
+    right: ['-18px', '0px'],
+  }[direction] || ['0px', '0px'];
+  const tiles = state.game.board.map((row, r) => row.map((value, c) => {
+    if (!value) return '';
+    const seenBefore = previousValues.get(value) > 0;
+    if (seenBefore) previousValues.set(value, previousValues.get(value) - 1);
+    const className = seenBefore && direction ? 'game-tile game-tile-slide' : 'game-tile game-tile-spawn';
+    return `<div class="${className}" data-value="${value}" style="--row:${r};--col:${c};--from-x:${offset[0]};--from-y:${offset[1]}">${value}</div>`;
+  }).join('')).join('');
+  gameBoard.innerHTML = `${cells}<div class="game-tile-layer">${tiles}</div>`;
   gameScore.textContent = String(state.game.score || 0);
   gameBest.textContent = localStorage.getItem(GAME_BEST_KEY) || '0';
   gameMessage.textContent = state.game.over ? 'Игра окончена. Результат сохранен.' : '';
