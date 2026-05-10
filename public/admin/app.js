@@ -559,20 +559,16 @@ function bookingCard(booking) {
       <div class="booking-main">
         <div class="booking-client-name">${clientName}</div>
         <div class="booking-subline">
-          <span>${phone || 'Телефон не указан'}</span>
-          <span>${zoneLabel}</span>
-          <span>${seat}</span>
+          ${phone || 'Телефон не указан'}
         </div>
-      </div>
-      <div class="booking-side">
-        <span class="booking-source-chip"><i class="dot ${sourceClass(booking.source)}"></i>${source}</span>
-        <span class="booking-number">#${escapeHtml(booking.id)}</span>
       </div>
       <span class="booking-chevron" aria-hidden="true"></span>
     </div>
     <div class="booking-details">
       <div class="booking-details-inner">
         <div class="booking-badges">
+          <span>${zoneLabel}</span>
+          <span>${seat}</span>
           ${arrivedBadge}
           ${sessionBadge}
         </div>

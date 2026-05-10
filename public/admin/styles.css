@@ -702,9 +702,9 @@ label {
     linear-gradient(105deg, rgba(255, 69, 58, 0.22), rgba(255, 69, 58, 0.075) 48%, var(--surface-solid) 100%);
 }
 .booking-summary {
-  min-height: 66px;
+  min-height: 64px;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto 28px;
+  grid-template-columns: 58px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 10px;
   padding: 10px;
@@ -745,54 +745,13 @@ label {
 }
 .booking-subline {
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
+  display: block;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 640;
-}
-.booking-subline span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.booking-subline span + span::before {
-  content: "";
-  width: 4px;
-  height: 4px;
-  display: inline-block;
-  border-radius: 999px;
-  background: var(--muted);
-  opacity: 0.55;
-  margin-right: 7px;
-  vertical-align: middle;
-}
-.booking-side {
-  min-width: 0;
-  display: grid;
-  justify-items: end;
-  gap: 5px;
-}
-.booking-source-chip {
-  min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--ghost-bg);
-  color: var(--text);
-  padding: 0 7px;
-  font-size: 11px;
-  font-weight: 760;
-  white-space: nowrap;
-}
-.booking-number {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 760;
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .booking-chevron {
   width: 28px;
@@ -1269,24 +1228,6 @@ label {
   .grid-2 { grid-template-columns: 1fr; }
   .booking-summary {
     grid-template-columns: 58px minmax(0, 1fr) 28px;
-  }
-  .booking-side {
-    grid-column: 2 / 3;
-    grid-row: 2;
-    display: flex;
-    align-items: center;
-    justify-items: start;
-  }
-  .booking-chevron {
-    grid-column: 3;
-    grid-row: 1 / span 2;
-  }
-  .booking-subline {
-    flex-wrap: wrap;
-    gap: 4px 7px;
-  }
-  .booking-subline span {
-    white-space: normal;
   }
   .booking-actions { grid-template-columns: 1fr; }
   .date-controls {
