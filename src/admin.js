@@ -16,8 +16,10 @@ import {
   getStaffAccount,
   isBookedStatus,
   isOpenSession,
+  listGameScores,
   listStaffAccounts,
   openDb,
+  recordGameScore,
   refreshDb,
   deleteStaffAccount,
   setBookingStatus,
@@ -589,6 +591,8 @@ async function handleApi(req, res, pathname) {
     if (actor.role !== 'admin') return json(res, 403, { ok: false, error: 'Недостаточно прав.' });
     return json(res, 200, saveStaffFromRequest(await readBody(req), actor));
   }
+  if (pathname === '/api/game/2048' && req.method === 'GET') return json(res, 200, { ok: true, scores: listGameScores(db) });
+  if (pathname === '/api/game/2048' && req.method === 'POST') return json(res, 200, recordGameScore(db, actor, (await readBody(req)).score));
   const staffMatch = pathname.match(/^\/api\/staff\/([^/]+)$/);
   if (staffMatch && req.method === 'DELETE') {
     if (actor.role !== 'admin') return json(res, 403, { ok: false, error: 'Недостаточно прав.' });

@@ -890,6 +890,146 @@ label {
 .cancelled-list .booking-card {
   margin-bottom: 0;
 }
+.mini-game {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-solid);
+  padding: 14px;
+}
+.mini-game-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.mini-game h3,
+.mini-game h4,
+.mini-game p {
+  margin: 0;
+}
+.mini-game h3 {
+  font-size: 18px;
+}
+.mini-game p,
+.game-message,
+.game-leaderboard p {
+  color: var(--muted);
+  font-size: 12px;
+}
+.mini-game-score {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.mini-game-score span {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9px;
+  background: var(--ghost-bg);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.mini-game-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(170px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.game-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  aspect-ratio: 1;
+  border-radius: 13px;
+  background: var(--zone-bg);
+  padding: 8px;
+  outline: none;
+}
+.game-board:focus-visible {
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+.game-tile {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--field);
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 800;
+}
+.game-tile[data-value="2"] { background: rgba(10, 132, 255, 0.12); }
+.game-tile[data-value="4"] { background: rgba(48, 215, 104, 0.14); }
+.game-tile[data-value="8"] { background: rgba(255, 159, 10, 0.18); }
+.game-tile[data-value="16"] { background: rgba(255, 69, 58, 0.16); }
+.game-tile[data-value="32"] { background: rgba(175, 82, 222, 0.17); }
+.game-tile[data-value="64"] { background: rgba(255, 204, 0, 0.24); }
+.game-tile:not([data-value="0"]) {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.game-tile[data-value="128"],
+.game-tile[data-value="256"],
+.game-tile[data-value="512"],
+.game-tile[data-value="1024"],
+.game-tile[data-value="2048"] {
+  background: linear-gradient(135deg, rgba(220, 199, 109, 0.9), rgba(0, 113, 227, 0.25));
+  color: #111114;
+}
+.game-side {
+  display: grid;
+  gap: 10px;
+}
+.game-controls {
+  display: grid;
+  grid-template-columns: repeat(3, 42px);
+  gap: 6px;
+  justify-content: start;
+}
+.game-controls button {
+  min-height: 38px;
+  padding: 0;
+  background: var(--ghost-bg);
+  color: var(--text);
+}
+.game-controls button:first-child {
+  grid-column: 2;
+}
+.game-controls button:nth-child(2) {
+  grid-column: 1;
+}
+.game-controls button:nth-child(3) {
+  grid-column: 2;
+}
+.game-controls button:nth-child(4) {
+  grid-column: 3;
+}
+.game-leaderboard {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.game-leaderboard div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 9px;
+  background: var(--ghost-bg);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.game-leaderboard span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .modal {
   position: fixed;
   inset: 0;
@@ -970,6 +1110,8 @@ label {
   .columns { grid-template-columns: 1fr; }
   .archive-bookings { grid-template-columns: 1fr; }
   .cancelled-list { grid-template-columns: 1fr; }
+  .mini-game-body { grid-template-columns: 1fr; }
+  .game-board { max-width: 280px; }
 }
 
 @media (max-width: 560px) {
@@ -985,6 +1127,8 @@ label {
     grid-column: 1 / -1;
   }
   .top-actions input { width: 100%; }
+  .mini-game-head { align-items: stretch; flex-direction: column; }
+  .mini-game-score { justify-content: start; }
   .staff-row {
     align-items: stretch;
     flex-direction: column;

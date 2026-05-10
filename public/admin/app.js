@@ -1,6 +1,8 @@
 const $ = (selector) => document.querySelector(selector);
 const SOUND_STORAGE_KEY = 'cezarSoundEnabled';
 const LAST_SEEN_BOOKING_KEY = 'cezarLastSeenBookingId';
+const GAME_STORAGE_KEY = 'cezar2048State';
+const GAME_BEST_KEY = 'cezar2048Best';
 
 function todayLocal() {
   const d = new Date();
@@ -27,6 +29,7 @@ const state = {
   openSessionReminderAt: 0,
   expandedBookingIds: new Set(),
   theme: localStorage.getItem('cezarTheme') || 'light',
+  game: null,
 };
 
 const login = $('#login');
@@ -46,6 +49,11 @@ const soundToggle = $('#soundToggle');
 const liveStatus = $('#liveStatus');
 const staffButton = $('#staffButton');
 const staffModal = $('#staffModal');
+const gameBoard = $('#gameBoard');
+const gameScore = $('#gameScore');
+const gameBest = $('#gameBest');
+const gameMessage = $('#gameMessage');
+const gameLeaderboard = $('#gameLeaderboard');
 const NOTIFICATION_SOUND_URL = '/sounds/siuuu.mp3';
 
 const SEATS_BY_ZONE = {
@@ -196,6 +204,7 @@ function showApp() {
   app.classList.remove('hidden');
   renderCurrentUser();
   updateSoundButton();
+  if (!state.game) initGame();
   startAutoRefresh();
 }
 
@@ -776,6 +785,139 @@ async function loadStaff() {
   renderStaff(data.staff || []);
 }
 
+function emptyGameBoard() {
+  return Array.from({ length: 4 }, () => Array(4).fill(0));
+}
+
+function makeGame() {
+  return { board: emptyGameBoard(), score: 0, over: false };
+}
+
+function loadGame() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(GAME_STORAGE_KEY) || 'null');
+    if (saved?.board?.length === 4) return saved;
+  } catch {}
+  const game = makeGame();
+  addGameTile(game);
+  addGameTile(game);
+  return game;
+}
+
+function saveGame() {
+  localStorage.setItem(GAME_STORAGE_KEY, JSON.stringify(state.game));
+  const best = Math.max(Number(localStorage.getItem(GAME_BEST_KEY) || 0), Number(state.game?.score || 0));
+  localStorage.setItem(GAME_BEST_KEY, String(best));
+}
+
+function addGameTile(game) {
+  const empty = [];
+  game.board.forEach((row, r) => row.forEach((value, c) => {
+    if (!value) empty.push([r, c]);
+  }));
+  if (!empty.length) return;
+  const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+  game.board[r][c] = Math.random() < 0.9 ? 2 : 4;
+}
+
+function slideGameLine(line) {
+  const values = line.filter(Boolean);
+  const out = [];
+  let gained = 0;
+  for (let i = 0; i < values.length; i += 1) {
+    if (values[i] === values[i + 1]) {
+      const merged = values[i] * 2;
+      out.push(merged);
+      gained += merged;
+      i += 1;
+    } else {
+      out.push(values[i]);
+    }
+  }
+  while (out.length < 4) out.push(0);
+  return { line: out, gained };
+}
+
+function canMoveGame(game) {
+  for (let r = 0; r < 4; r += 1) {
+    for (let c = 0; c < 4; c += 1) {
+      const value = game.board[r][c];
+      if (!value || value === game.board[r]?.[c + 1] || value === game.board[r + 1]?.[c]) return true;
+    }
+  }
+  return false;
+}
+
+function moveGame(direction) {
+  if (!state.game || state.game.over) return;
+  const before = JSON.stringify(state.game.board);
+  let gained = 0;
+  for (let i = 0; i < 4; i += 1) {
+    const line =
+      direction === 'left' || direction === 'right'
+        ? state.game.board[i].slice()
+        : state.game.board.map((row) => row[i]);
+    const source = direction === 'right' || direction === 'down' ? line.reverse() : line;
+    const moved = slideGameLine(source);
+    const result = direction === 'right' || direction === 'down' ? moved.line.reverse() : moved.line;
+    gained += moved.gained;
+    for (let j = 0; j < 4; j += 1) {
+      if (direction === 'left' || direction === 'right') state.game.board[i][j] = result[j];
+      else state.game.board[j][i] = result[j];
+    }
+  }
+  if (JSON.stringify(state.game.board) === before) return;
+  state.game.score += gained;
+  addGameTile(state.game);
+  state.game.over = !canMoveGame(state.game);
+  saveGame();
+  renderGame();
+  if (state.game.over) submitGameScore().catch(() => {});
+}
+
+function renderGame() {
+  if (!gameBoard || !state.game) return;
+  gameBoard.innerHTML = state.game.board
+    .flat()
+    .map((value) => `<div class="game-tile" data-value="${value || 0}">${value || ''}</div>`)
+    .join('');
+  gameScore.textContent = String(state.game.score || 0);
+  gameBest.textContent = localStorage.getItem(GAME_BEST_KEY) || '0';
+  gameMessage.textContent = state.game.over ? 'Игра окончена. Результат сохранен.' : '';
+}
+
+function newGame() {
+  state.game = makeGame();
+  addGameTile(state.game);
+  addGameTile(state.game);
+  saveGame();
+  renderGame();
+}
+
+function renderLeaderboard(scores = []) {
+  if (!gameLeaderboard) return;
+  gameLeaderboard.innerHTML = scores.length
+    ? scores.map((row, index) => `<div><span>${index + 1}. ${escapeHtml(row.name || row.username)}</span><b>${Number(row.score || 0)}</b></div>`).join('')
+    : '<p>Пока нет результатов</p>';
+}
+
+async function loadGameLeaderboard() {
+  const data = await api('/api/game/2048');
+  renderLeaderboard(data.scores || []);
+}
+
+async function submitGameScore() {
+  if (!state.game?.score) return;
+  const data = await api('/api/game/2048', { method: 'POST', body: JSON.stringify({ score: state.game.score }) });
+  renderLeaderboard(data.scores || []);
+}
+
+function initGame() {
+  state.game = loadGame();
+  renderGame();
+  loadGameLeaderboard().catch(() => {});
+}
+
 function shiftDay(delta) {
   const d = new Date(`${state.date}T12:00:00`);
   d.setDate(d.getDate() + delta);
@@ -905,6 +1047,24 @@ document.addEventListener('visibilitychange', () => {
 });
 document.addEventListener('pointerdown', unlockSoundAfterGesture, { passive: true });
 document.addEventListener('keydown', unlockSoundAfterGesture);
+$('#gameNew').addEventListener('click', () => {
+  submitGameScore().catch(() => {});
+  newGame();
+  gameBoard.focus();
+});
+document.querySelectorAll('[data-game-move]').forEach((button) => {
+  button.addEventListener('click', () => {
+    moveGame(button.dataset.gameMove);
+    gameBoard.focus();
+  });
+});
+gameBoard.addEventListener('keydown', (event) => {
+  const keyMap = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  const direction = keyMap[event.key];
+  if (!direction) return;
+  event.preventDefault();
+  moveGame(direction);
+});
 
 applyTheme();
 renderTimePicker();

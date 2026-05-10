@@ -19,6 +19,7 @@ function emptyStore() {
     promo_codes: [],
     pending_registrations: [],
     admin_staff: [],
+    game_scores: [],
   };
 }
 
@@ -30,6 +31,7 @@ function normalizeStore(db) {
   if (!Array.isArray(db.promo_codes)) db.promo_codes = [];
   if (!Array.isArray(db.pending_registrations)) db.pending_registrations = [];
   if (!Array.isArray(db.admin_staff)) db.admin_staff = [];
+  if (!Array.isArray(db.game_scores)) db.game_scores = [];
   return db;
 }
 
@@ -274,6 +276,37 @@ export function deleteStaffAccount(db, username) {
   const [row] = db.admin_staff.splice(idx, 1);
   persist(db);
   return { ok: true, row };
+}
+
+export function listGameScores(db) {
+  refreshDb(db);
+  return [...db.game_scores]
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+    .slice(0, 10);
+}
+
+export function recordGameScore(db, staff, score) {
+  refreshDb(db);
+  const value = Math.max(0, Math.floor(Number(score || 0)));
+  if (!staff?.username || !value) return { ok: false, reason: 'invalid' };
+  const now = new Date().toISOString();
+  const existing = db.game_scores.find((row) => row.username === staff.username);
+  if (existing) {
+    if (value > Number(existing.score || 0)) {
+      existing.score = value;
+      existing.name = staff.name || staff.username;
+      existing.updated_at = now;
+    }
+  } else {
+    db.game_scores.push({
+      username: staff.username,
+      name: staff.name || staff.username,
+      score: value,
+      updated_at: now,
+    });
+  }
+  persist(db);
+  return { ok: true, scores: listGameScores(db) };
 }
 
 export function upsertUserPhone(db, userId, telegramName, phone, options = {}) {

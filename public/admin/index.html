@@ -121,6 +121,35 @@
               <section id="completedBookings" class="cancelled-bookings hidden"></section>
               <section id="cancelledBookings" class="cancelled-bookings hidden"></section>
             </div>
+            <section class="mini-game" aria-label="2048">
+              <div class="mini-game-head">
+                <div>
+                  <h3>2048</h3>
+                  <p>Мини-турнир сотрудников</p>
+                </div>
+                <div class="mini-game-score">
+                  <span>Счет <b id="gameScore">0</b></span>
+                  <span>Лучший <b id="gameBest">0</b></span>
+                </div>
+              </div>
+              <div class="mini-game-body">
+                <div id="gameBoard" class="game-board" tabindex="0" aria-label="Поле 2048"></div>
+                <div class="game-side">
+                  <button id="gameNew" type="button" class="ghost">Новая игра</button>
+                  <div class="game-controls" aria-label="Управление 2048">
+                    <button type="button" data-game-move="up">↑</button>
+                    <button type="button" data-game-move="left">←</button>
+                    <button type="button" data-game-move="down">↓</button>
+                    <button type="button" data-game-move="right">→</button>
+                  </div>
+                  <div id="gameMessage" class="game-message"></div>
+                  <div>
+                    <h4>Рейтинг</h4>
+                    <div id="gameLeaderboard" class="game-leaderboard"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
           </section>
         </section>
 
