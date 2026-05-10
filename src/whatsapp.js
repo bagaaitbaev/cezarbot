@@ -21,6 +21,7 @@ import {
   listActivePromoCodes,
   listConfirmedBookingsInRange,
   listUpcomingBookings,
+  markManualWhatsAppConfirmationFailed,
   markManualWhatsAppConfirmationSent,
   markPromoUsed,
   resetBookings,
@@ -255,13 +256,28 @@ function whatsappChatIdFromPhone(phone) {
   return digits ? `${digits}@c.us` : '';
 }
 
-function whatsappRecipientForBooking(db, booking) {
+function whatsappPhoneDigitsForBooking(db, booking) {
   const userId = String(booking?.user_id ?? '');
-  if (userId.includes('@')) return userId;
   if (!userId.startsWith('admin:')) return '';
   const user = getUser(db, userId);
   const phone = user?.phone || userId.slice('admin:'.length);
-  return whatsappChatIdFromPhone(phone);
+  return normalizeManualPhone(phone);
+}
+
+async function whatsappRecipientForBooking(client, db, booking) {
+  const userId = String(booking?.user_id ?? '');
+  if (userId.includes('@')) return userId;
+  const digits = whatsappPhoneDigitsForBooking(db, booking);
+  if (!digits) return '';
+  try {
+    const numberId = await client.getNumberId(digits);
+    if (numberId?._serialized) return numberId._serialized;
+    console.warn(`[CEZAR WhatsApp] Could not find WhatsApp account for manual booking phone ${digits}.`);
+    return '';
+  } catch (e) {
+    console.error(`[CEZAR WhatsApp] Could not resolve WhatsApp number ${digits}:`, e?.message ?? e);
+    return '';
+  }
 }
 
 function hasUsablePhone(userId, user, contactPhone) {
@@ -348,12 +364,16 @@ function startManualWhatsAppConfirmationJob(client, db) {
       if (!String(b.user_id ?? '').startsWith('admin:')) return false;
       if (!isBookedStatus(b.status)) return false;
       if (b.manual_whatsapp_confirmation_sent === 1) return false;
+      if (b.manual_whatsapp_confirmation_error) return false;
       return new Date(b.start_datetime).getTime() > now;
     });
 
     for (const b of list) {
-      const recipient = whatsappRecipientForBooking(db, b);
-      if (!recipient) continue;
+      const recipient = await whatsappRecipientForBooking(client, db, b);
+      if (!recipient) {
+        markManualWhatsAppConfirmationFailed(db, b.id, 'whatsapp_account_not_found');
+        continue;
+      }
       try {
         await client.sendMessage(recipient, manualConfirmationText(b));
         markManualWhatsAppConfirmationSent(db, b.id);
@@ -370,7 +390,7 @@ function startWhatsAppReminderJob(client, db) {
   const tick = async () => {
     const { getBookingsNeedingReminder, markReminderSent } = await import('./db.js');
     for (const b of getBookingsNeedingReminder(db)) {
-      const recipient = whatsappRecipientForBooking(db, b);
+      const recipient = await whatsappRecipientForBooking(client, db, b);
       if (!recipient) continue;
       try {
         await client.sendMessage(
@@ -393,7 +413,7 @@ function startWhatsAppReview2gisJob(client, db) {
     if (!url) return;
     const { getBookingsNeedingReview2gis, markReview2gisSent } = await import('./db.js');
     for (const b of getBookingsNeedingReview2gis(db)) {
-      const recipient = whatsappRecipientForBooking(db, b);
+      const recipient = await whatsappRecipientForBooking(client, db, b);
       if (!recipient) continue;
       try {
         await client.sendMessage(

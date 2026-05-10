@@ -620,7 +620,17 @@ export function markReminderSent(db, bookingId) {
 export function markManualWhatsAppConfirmationSent(db, bookingId) {
   refreshDb(db);
   const b = db.bookings.find((x) => x.id === bookingId);
-  if (b) b.manual_whatsapp_confirmation_sent = 1;
+  if (b) {
+    b.manual_whatsapp_confirmation_sent = 1;
+    delete b.manual_whatsapp_confirmation_error;
+  }
+  persist(db);
+}
+
+export function markManualWhatsAppConfirmationFailed(db, bookingId, reason = 'failed') {
+  refreshDb(db);
+  const b = db.bookings.find((x) => x.id === bookingId);
+  if (b) b.manual_whatsapp_confirmation_error = String(reason || 'failed');
   persist(db);
 }
 
