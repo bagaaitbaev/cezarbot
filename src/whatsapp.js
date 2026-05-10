@@ -823,6 +823,23 @@ const db = openDb();
 const pairingPhone = String(process.env.WHATSAPP_PAIRING_PHONE ?? '').replace(/\D/g, '');
 const pairingEnabled = pairingPhone.length > 0;
 const webVersionUrl = process.env.WHATSAPP_WEB_VERSION_URL?.trim() || DEFAULT_WA_WEB_VERSION_URL;
+const processedMessageIds = new Map();
+const processedMessageTtlMs = 5 * 60 * 1000;
+let backgroundJobsStarted = false;
+
+function shouldHandleIncomingMessage(message) {
+  const id = message?.id?._serialized || message?.id?.id || '';
+  if (!id) return true;
+  const now = Date.now();
+  if (processedMessageIds.has(id)) return false;
+  processedMessageIds.set(id, now);
+  if (processedMessageIds.size > 500) {
+    for (const [key, ts] of processedMessageIds) {
+      if (now - ts > processedMessageTtlMs) processedMessageIds.delete(key);
+    }
+  }
+  return true;
+}
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: process.env.WHATSAPP_CLIENT_ID || 'cezarbot' }),
@@ -879,12 +896,15 @@ client.on('code', (code) => {
 
 client.on('ready', () => {
   console.log('[CEZAR WhatsApp] Bot is ready.');
+  if (backgroundJobsStarted) return;
+  backgroundJobsStarted = true;
   startManualWhatsAppConfirmationJob(client, db);
   startWhatsAppReminderJob(client, db);
   startWhatsAppReview2gisJob(client, db);
 });
 
 client.on('message', (message) => {
+  if (!shouldHandleIncomingMessage(message)) return;
   handleMessage(client, db, message).catch((e) => {
     console.error('[CEZAR WhatsApp] Handler error:', e);
   });
