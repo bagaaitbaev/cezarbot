@@ -349,9 +349,6 @@ function manualConfirmationText(booking) {
     '',
     `Зона: ${zoneLabel(booking.zone)}`,
     `Начало: ${formatKzDateTime(booking.start_datetime)}`,
-    `Длительность: ${minutesLabel(booking.duration_minutes, 'ru')}`,
-    `Сумма: ${formatPrice(booking.total_price)} тг`,
-    '',
     'Ждем вас!',
   ].join('\n');
 }
